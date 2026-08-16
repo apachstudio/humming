@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 /// Design tokens pulled from the Humming Figma brand guidelines.
 /// The app is fully greyscale by design — light arrives only as light.
@@ -28,18 +29,39 @@ enum HumTheme {
         endPoint: .bottomTrailing
     )
 
+    /// First name extracted from the device name ("Andrea's iPhone" → "Andrea").
+    static var firstName: String {
+        let name = UIDevice.current.name
+        for delimiter in ["'s ", "'s", "\u{2019}s ", "\u{2019}s"] {
+            if let range = name.range(of: delimiter) {
+                let candidate = String(name[..<range.lowerBound])
+                let lower = candidate.lowercased()
+                if !candidate.isEmpty, lower != "iphone", lower != "ipad", lower != "mac" {
+                    return candidate
+                }
+            }
+        }
+        return ""
+    }
+
     /// Rotating greetings from the brand "UI COMMS" guidelines.
-    static let greetings: [(top: String, bottom: String)] = [
-        ("Hey!", "What's in your head?"),
+    private static let greetings: [(top: String, bottom: String)] = [
+        ("Hey!", "What\u{2019}s in your head?"),
         ("Hey!", "Back for another hit?"),
         ("Welcome back my friend,", "today is jamming seshhhh"),
-        ("Haven't seen you in a while.", "Feeling creative today?")
+        ("Haven\u{2019}t seen you in a while.", "Feeling creative today?")
     ]
 
     static func greetingOfTheDay(humCount: Int) -> (top: String, bottom: String) {
-        guard humCount > 0 else { return greetings[0] }
+        let name = firstName
+        let salutation = name.isEmpty ? "Hey!" : "Hey, \(name)!"
+        guard humCount > 0 else {
+            return (salutation, "What\u{2019}s in your head?")
+        }
         let day = Calendar.current.ordinality(of: .day, in: .year, for: .now) ?? 0
-        return greetings[day % greetings.count]
+        var (top, bottom) = greetings[day % greetings.count]
+        if top == "Hey!" { top = salutation }
+        return (top, bottom)
     }
 }
 

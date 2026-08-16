@@ -8,37 +8,13 @@ struct LiquidGlassCircle: View {
 
     var body: some View {
         ZStack {
-            // Soft halo bleeding into the dark background.
-            Circle()
-                .fill(Color.white.opacity(0.5))
-                .frame(width: size * 1.3, height: size * 1.3)
-                .blur(radius: size * 0.27)
-
-            // Glass body.
-            Circle()
-                .fill(
-                    RadialGradient(
-                        colors: [Color.white, Color(hex: 0xB8B8B8)],
-                        center: UnitPoint(x: 0.42, y: 0.4),
-                        startRadius: 0,
-                        endRadius: size * 0.68
-                    )
-                )
-                .overlay(
-                    Circle().strokeBorder(
-                        LinearGradient(
-                            colors: [Color.white.opacity(0.95), Color.white.opacity(0)],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        ),
-                        lineWidth: 1
-                    )
-                )
+            Image("liquid-glass-button")
+                .resizable()
+                .scaledToFit()
                 .frame(width: size, height: size)
-                .shadow(color: Color.white.opacity(0.28), radius: size * 0.25)
 
             if showsGlyph {
-                WaveGlyphView()
+                WaveGlyphView(color: HumTheme.glyphInk)
                     .frame(width: size * 0.46, height: size * 0.39)
                     .offset(y: size * 0.02)
             }
@@ -46,39 +22,76 @@ struct LiquidGlassCircle: View {
     }
 }
 
-/// The dark embossed record button: a charcoal disc barely lighter than
-/// the background, lifted by a thin rim light (strongest at the top-left)
-/// and a soft drop shadow.
+/// The dark embossed record button: a charcoal disc lifted by a thin rim light
+/// (strongest at the top-left), a soft white bloom, a drop shadow, and the
+/// brand wave glyph centred inside.
 struct DarkGlassCircle: View {
     var size: CGFloat
+    var showsGlyph: Bool = true
+    var showsBloom: Bool = true
+    var bloomOpacity: Double = 1
+    var bloomScale: CGFloat = 1
+    var circleAssetName: String?
 
     var body: some View {
-        Circle()
-            .fill(
-                RadialGradient(
-                    colors: [Color(hex: 0x323232), Color(hex: 0x282828)],
-                    center: UnitPoint(x: 0.38, y: 0.32),
-                    startRadius: 0,
-                    endRadius: size * 0.8
-                )
-            )
-            .overlay(
-                Circle().strokeBorder(
-                    LinearGradient(
-                        stops: [
-                            .init(color: .white.opacity(0.5), location: 0),
-                            .init(color: .white.opacity(0.06), location: 0.35),
-                            .init(color: .clear, location: 0.6),
-                            .init(color: .white.opacity(0.14), location: 1)
-                        ],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    ),
-                    lineWidth: 1.5
-                )
-            )
-            .frame(width: size, height: size)
-            .shadow(color: .black.opacity(0.45), radius: size * 0.1, x: size * 0.02, y: size * 0.05)
+        ZStack {
+            Group {
+                if showsBloom {
+                    // Outer ambient bloom gives the dark disc a subtle luminous presence.
+                    Circle()
+                        .fill(Color.white.opacity(0.14))
+                        .frame(width: size * 1.35, height: size * 1.35)
+                        .blur(radius: size * 0.28)
+
+                    Circle()
+                        .fill(Color.white.opacity(0.2))
+                        .frame(width: size * 1.08, height: size * 1.08)
+                        .blur(radius: size * 0.14)
+                }
+            }
+            .opacity(bloomOpacity)
+            .scaleEffect(bloomScale)
+
+            if let circleAssetName {
+                Image(circleAssetName)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: size, height: size)
+            } else {
+                Circle()
+                    .fill(
+                        RadialGradient(
+                            colors: [Color(hex: 0x323232), Color(hex: 0x282828)],
+                            center: UnitPoint(x: 0.38, y: 0.32),
+                            startRadius: 0,
+                            endRadius: size * 0.12
+                        )
+                    )
+                    .overlay(
+                        Circle().strokeBorder(
+                            LinearGradient(
+                                stops: [
+                                    .init(color: .white.opacity(0.5), location: 0),
+                                    .init(color: .white.opacity(0.06), location: 0.35),
+                                    .init(color: .clear, location: 0.6),
+                                    .init(color: .white.opacity(0.14), location: 1)
+                                ],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            ),
+                            lineWidth: 1.5
+                        )
+                    )
+                    .frame(width: size, height: size)
+            }
+
+            if showsGlyph {
+                Image("record-wave")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: size * 0.36, height: size * 0.31)
+            }
+        }
     }
 }
 
@@ -97,7 +110,7 @@ struct LiquidGlassBlob: View {
     ZStack {
         HumTheme.charcoal.ignoresSafeArea()
         VStack(spacing: 80) {
-            LiquidGlassCircle(size: 137)
+            DarkGlassCircle(size: 137)
         }
     }
 }
