@@ -1,0 +1,19 @@
+# Xcode
+DerivedData/
+xcuserdata/
+*.xcuserstate
+*.xccheckout
+*.xcscmblueprint
+build/
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# OS
+.DS_Store
+
+# Web leftovers
+node_modules/
+dist/
+*.local
+.vite/
