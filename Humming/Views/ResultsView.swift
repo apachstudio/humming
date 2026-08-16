@@ -80,6 +80,7 @@ struct ResultsView: View {
     private var header: some View {
         HStack {
             Button {
+                Haptics.light()
                 switch mode {
                 case .fresh(_, _, let onClose): onClose()
                 case .saved(_, let onBack): onBack()
@@ -178,6 +179,7 @@ struct ResultsView: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 12) {
                 Button {
+                    Haptics.selection()
                     player.toggle()
                 } label: {
                     ZStack {
@@ -217,13 +219,17 @@ struct ResultsView: View {
         VStack(spacing: 12) {
             switch mode {
             case .fresh(let onSave, let onRecordAgain, _):
-                Button("Record Again", action: onRecordAgain)
+                Button("Record Again") {
+                    Haptics.medium()
+                    onRecordAgain()
+                }
                     .buttonStyle(OutlinePillButtonStyle())
 
                 exportButton
 
                 Button {
                     onSave(currentHum)
+                    Haptics.success()
                 } label: {
                     Text("Save")
                         .frame(maxWidth: .infinity)
@@ -233,7 +239,10 @@ struct ResultsView: View {
             case .saved(let onDelete, _):
                 exportButton
 
-                Button(role: .destructive, action: onDelete) {
+                Button(role: .destructive) {
+                    Haptics.warning()
+                    onDelete()
+                } label: {
                     Text("Delete Hum")
                         .frame(maxWidth: .infinity)
                 }
@@ -250,6 +259,11 @@ struct ResultsView: View {
                     .frame(maxWidth: .infinity)
             }
             .buttonStyle(OutlinePillButtonStyle())
+            .simultaneousGesture(
+                TapGesture().onEnded {
+                    Haptics.light()
+                }
+            )
         } else {
             Button("Export MIDI") {}
                 .buttonStyle(OutlinePillButtonStyle())
