@@ -9,6 +9,7 @@ final class AudioRecorder: NSObject, ObservableObject {
     static let maxDuration: TimeInterval = 60
 
     @Published private(set) var isRecording = false
+    @Published private(set) var isPaused = false
     @Published private(set) var elapsed: TimeInterval = 0
     @Published private(set) var levels: [CGFloat] = Array(repeating: 0.08, count: AudioRecorder.barCount)
     /// 0...1 smoothed loudness driving the orb pulse.
@@ -45,16 +46,30 @@ final class AudioRecorder: NSObject, ObservableObject {
         elapsed = 0
         levels = Array(repeating: 0.08, count: Self.barCount)
         isRecording = true
+        isPaused = false
 
         timer = Timer.scheduledTimer(withTimeInterval: 0.05, repeats: true) { [weak self] _ in
             Task { @MainActor in self?.tick() }
         }
     }
 
+    /// Toggles pause/resume while keeping the same recording file.
+    func togglePause() {
+        guard let recorder else { return }
+        if isPaused {
+            recorder.record()
+            isPaused = false
+        } else {
+            recorder.pause()
+            isPaused = true
+            currentLevel = 0
+        }
+    }
+
     /// Stops recording and returns the file URL with the captured duration.
     func stop() -> (url: URL, duration: TimeInterval)? {
         guard let recorder else { return nil }
-        let duration = recorder.currentTime
+        let duration = recorder.isRecording ? recorder.currentTime : elapsed
         finish(recorder)
         guard let url = lastRecordingURL, duration > 0 else { return nil }
         return (url, duration)
@@ -74,11 +89,12 @@ final class AudioRecorder: NSObject, ObservableObject {
         timer = nil
         self.recorder = nil
         isRecording = false
+        isPaused = false
         try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
     }
 
     private func tick() {
-        guard let recorder else { return }
+        guard let recorder, recorder.isRecording else { return }
         recorder.updateMeters()
         elapsed = recorder.currentTime
 

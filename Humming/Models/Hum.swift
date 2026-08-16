@@ -34,8 +34,8 @@ struct Hum: Identifiable, Codable, Equatable, Hashable {
 }
 
 extension Hum {
-    /// Chords ending in "m" (minor) get the coral accent in the grid,
-    /// matching the Figma "Chords Ready" screen.
+    /// Chords ending in "m" (minor) get the dark emphasis in the grid,
+    /// matching the Figma "Chords Ready" screen hierarchy.
     static func isMinorSymbol(_ symbol: String) -> Bool {
         symbol.hasSuffix("m")
     }

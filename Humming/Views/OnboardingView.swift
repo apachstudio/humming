@@ -1,75 +1,81 @@
 import SwiftUI
 
-/// First-launch screen (Figma 19:65) with the exit transition
-/// from the "Transition animation" frame (19:205): everything
-/// slides up as the glass button leaves through the top.
+/// First-launch sequence (Figma flow 3):
+/// 1. The "humming" wordmark draws itself as a single stroke.
+/// 2. It shrinks upward while the tagline fades in beneath it.
+/// 3. Crossfade to home (handled by RootView).
+/// Tap anywhere to skip.
 struct OnboardingView: View {
     var onFinished: () -> Void
 
-    @State private var isLeaving = false
+    @State private var drawProgress: CGFloat = 0
+    @State private var compact = false
+    @State private var finished = false
 
     var body: some View {
         GeometryReader { proxy in
+            let width = proxy.size.width
             let height = proxy.size.height
 
             ZStack {
                 HumTheme.charcoal.ignoresSafeArea()
 
-                Button {
-                    beginTransition()
-                } label: {
-                    LiquidGlassCircle(size: 137)
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Get started")
-                .position(
-                    x: proxy.size.width / 2,
-                    y: isLeaving ? -120 : height * 0.5
-                )
+                WordmarkView(progress: drawProgress)
+                    .frame(width: compact ? 84 : 200)
+                    .position(
+                        x: width / 2,
+                        y: compact ? height * 0.42 : height * 0.5
+                    )
 
-                VStack(spacing: 24) {
-                    tagline
-                    Text("Hum a melody and get the\nchords and MIDI instantly")
-                        .font(.system(size: 16))
-                        .foregroundStyle(HumTheme.mutedOnDark)
-                        .multilineTextAlignment(.center)
-                        .lineSpacing(4)
-                }
-                .position(
-                    x: proxy.size.width / 2,
-                    y: isLeaving ? height * 0.52 : height * 0.79
-                )
-                .opacity(isLeaving ? 0 : 1)
+                tagline
+                    .position(x: width / 2, y: height * 0.56)
+                    .opacity(compact ? 1 : 0)
             }
         }
+        .contentShape(Rectangle())
+        .onTapGesture { finish() }
         .preferredColorScheme(.dark)
         .statusBarHidden()
+        .onAppear { runSequence() }
     }
 
     /// "Think it / Hum it / Play it" brand tagline.
     private var tagline: some View {
-        VStack(spacing: 2) {
+        VStack(spacing: 4) {
             Text("Think it")
-                .font(.system(size: 28, weight: .light))
+                .font(.system(size: 20, weight: .light))
                 .foregroundStyle(Color(hex: 0x8F8F8F))
             Text("Hum it")
-                .font(.system(size: 30, weight: .semibold))
+                .font(.system(size: 20, weight: .semibold))
                 .foregroundStyle(Color(hex: 0xE2E2E2))
             Text("Play it")
-                .font(.system(size: 34, weight: .bold))
+                .font(.system(size: 24, weight: .bold))
                 .foregroundStyle(.white)
         }
-        .kerning(-0.6)
+        .kerning(-0.4)
     }
 
-    private func beginTransition() {
-        guard !isLeaving else { return }
-        withAnimation(.spring(response: 0.65, dampingFraction: 0.85)) {
-            isLeaving = true
+    private func runSequence() {
+        // 1. Draw the wordmark stroke.
+        withAnimation(.easeInOut(duration: 1.2)) {
+            drawProgress = 1
         }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.55) {
-            onFinished()
+        // 2. Shrink up, reveal the tagline.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+            withAnimation(.spring(response: 0.6, dampingFraction: 0.85)) {
+                compact = true
+            }
         }
+        // 3. Hand off to home.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 3.4) {
+            finish()
+        }
+    }
+
+    private func finish() {
+        guard !finished else { return }
+        finished = true
+        onFinished()
     }
 }
 

@@ -98,7 +98,7 @@ struct ResultsView: View {
             Text(headline.uppercased())
                 .font(.system(size: 14))
                 .kerning(0.55)
-                .foregroundStyle(HumTheme.coral)
+                .foregroundStyle(HumTheme.grayText)
         }
     }
 
@@ -200,7 +200,7 @@ struct ResultsView: View {
                 ZStack(alignment: .leading) {
                     Capsule().fill(HumTheme.hairline)
                     Capsule()
-                        .fill(HumTheme.coral)
+                        .fill(HumTheme.ink)
                         .frame(width: max(0, proxy.size.width * player.progress))
                 }
             }
@@ -237,7 +237,7 @@ struct ResultsView: View {
                     Text("Delete Hum")
                         .frame(maxWidth: .infinity)
                 }
-                .buttonStyle(OutlinePillButtonStyle(textColor: HumTheme.coral))
+                .buttonStyle(OutlinePillButtonStyle(textColor: HumTheme.ink))
             }
         }
     }
@@ -260,7 +260,7 @@ struct ResultsView: View {
 
 // MARK: - Components
 
-/// One tile in the chord grid; minor chords carry the coral accent.
+/// One tile in the chord grid; minor chords carry the dark emphasis.
 struct ChordCard: View {
     let symbol: String
 
@@ -269,7 +269,7 @@ struct ChordCard: View {
             Text(symbol)
                 .font(.system(size: 36, weight: .light))
                 .kerning(0.37)
-                .foregroundStyle(Hum.isMinorSymbol(symbol) ? HumTheme.coral : HumTheme.dimmed)
+                .foregroundStyle(Hum.isMinorSymbol(symbol) ? HumTheme.ink : HumTheme.dimmed)
 
             HStack(spacing: 4) {
                 ForEach(Array(["↓", "↑", "↓", "↑"].enumerated()), id: \.offset) { _, arrow in

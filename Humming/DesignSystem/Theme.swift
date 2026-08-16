@@ -1,16 +1,16 @@
 import SwiftUI
 
 /// Design tokens pulled from the Humming Figma brand guidelines.
+/// The app is fully greyscale by design — light arrives only as light.
 enum HumTheme {
-    // Brand
-    static let coral = Color(hex: 0xFF6B4A)
-    static let coralLight = Color(hex: 0xFF8C5A)
-    static let charcoal = Color(hex: 0x282828)
-
     // Dark screens
+    static let charcoal = Color(hex: 0x1A1A1A)
+    static let surfaceDark = Color(hex: 0x1E1E1E)
     static let textOnDark = Color(hex: 0xEBEBEB)
     static let mutedOnDark = Color(hex: 0x747474)
     static let greetingGray = Color(hex: 0x686868)
+    static let labelFaint = Color(hex: 0x5B5B5B)
+    static let hintGray = Color(hex: 0x979797)
     static let glyphInk = Color(hex: 0x1D1D1D)
 
     // Light screens
@@ -21,24 +21,17 @@ enum HumTheme {
     static let dimmed = Color(hex: 0xD1D5DC)
     static let hairline = Color(hex: 0xE5E7EB)
 
-    /// Warm beige gradient used for hum avatars.
+    /// Soft grey gradient used for hum avatars.
     static let avatarGradient = LinearGradient(
-        colors: [Color(hex: 0xD4B896), Color(hex: 0xF0E4D0)],
-        startPoint: .topLeading,
-        endPoint: .bottomTrailing
-    )
-
-    /// Coral gradient for the recording orb.
-    static let orbGradient = LinearGradient(
-        colors: [Color(hex: 0xFF6B4A), Color(hex: 0xFF8C5A)],
+        colors: [Color(hex: 0xD9D9D9), Color(hex: 0xF1F1F1)],
         startPoint: .topLeading,
         endPoint: .bottomTrailing
     )
 
     /// Rotating greetings from the brand "UI COMMS" guidelines.
     static let greetings: [(top: String, bottom: String)] = [
-        ("Yo!", "What's in your head?"),
-        ("Yo!", "Back for another hit?"),
+        ("Hey!", "What's in your head?"),
+        ("Hey!", "Back for another hit?"),
         ("Welcome back my friend,", "today is jamming seshhhh"),
         ("Haven't seen you in a while.", "Feeling creative today?")
     ]

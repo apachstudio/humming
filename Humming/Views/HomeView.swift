@@ -1,7 +1,7 @@
 import SwiftUI
 
-/// Owns the capture flow: idle "Record a melody" screen → listening →
-/// processing → chords-ready results.
+/// Owns the capture flow: home ("alt 3") → recording → processing →
+/// chords-ready results.
 struct HomeView: View {
     enum Phase: Equatable {
         case idle
@@ -27,8 +27,7 @@ struct HomeView: View {
             case .recording:
                 ListeningView(
                     recorder: recorder,
-                    onStop: finishRecording,
-                    onCancel: cancelRecording
+                    onStop: finishRecording
                 )
                 .transition(.opacity)
             case .processing:
@@ -70,43 +69,43 @@ struct HomeView: View {
         }
     }
 
-    // MARK: - Idle screen (Figma 19:161 "Record a melody")
+    // MARK: - Home screen (Figma flow 3, "alt 3")
 
     private var idleScreen: some View {
         ZStack {
             HumTheme.charcoal.ignoresSafeArea()
 
-            // Glass slab glowing up from the bottom edge.
-            LiquidGlassBlob()
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
-                .offset(y: 330)
-                .allowsHitTesting(false)
-                .ignoresSafeArea()
-
-            VStack {
-                HStack(alignment: .top) {
-                    greeting
+            VStack(spacing: 0) {
+                HStack {
                     Spacer()
                     Button {
                         showLibrary = true
                     } label: {
-                        Image(systemName: "music.note.list")
-                            .font(.system(size: 18, weight: .medium))
-                            .foregroundStyle(HumTheme.mutedOnDark)
-                            .frame(width: 44, height: 44)
-                            .contentShape(Rectangle())
+                        Image(systemName: "archivebox")
+                            .font(.system(size: 16, weight: .medium))
+                            .foregroundStyle(.white)
+                            .frame(width: 46, height: 46)
+                            .background(HumTheme.surfaceDark, in: Circle())
                     }
                     .accessibilityLabel("Your hums")
                 }
                 .padding(.horizontal, 24)
                 .padding(.top, 12)
 
-                Spacer()
-            }
+                greeting
+                    .padding(.top, 56)
 
-            Text("Tap and start humming")
-                .font(.system(size: 16))
-                .foregroundStyle(HumTheme.textOnDark)
+                Spacer()
+
+                LiquidGlassCircle(size: 150)
+
+                Spacer()
+
+                Text("Tap and start humming")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(HumTheme.labelFaint)
+                    .padding(.bottom, 20)
+            }
         }
         .contentShape(Rectangle())
         .onTapGesture { startRecording() }
@@ -116,14 +115,15 @@ struct HomeView: View {
     /// Playful greeting from the brand UI COMMS guidelines.
     private var greeting: some View {
         let lines = HumTheme.greetingOfTheDay(humCount: store.hums.count)
-        return VStack(alignment: .leading, spacing: 0) {
+        return VStack(spacing: 0) {
             Text(lines.top)
                 .foregroundStyle(HumTheme.greetingGray)
             Text(lines.bottom)
                 .foregroundStyle(.white)
         }
-        .font(.system(size: 26, weight: .medium))
-        .kerning(-0.3)
+        .font(.system(size: 32, weight: .medium))
+        .kerning(-0.48)
+        .multilineTextAlignment(.center)
     }
 
     // MARK: - Flow
@@ -174,11 +174,6 @@ struct HomeView: View {
                 phase = .results(hum)
             }
         }
-    }
-
-    private func cancelRecording() {
-        recorder.cancel()
-        backToIdle()
     }
 
     private func discardFreshRecording() {

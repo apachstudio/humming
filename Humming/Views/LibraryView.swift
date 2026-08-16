@@ -67,7 +67,7 @@ struct LibraryView: View {
             Text("LIBRARY")
                 .font(.system(size: 14))
                 .kerning(0.55)
-                .foregroundStyle(HumTheme.coral)
+                .foregroundStyle(HumTheme.grayText)
         }
     }
 

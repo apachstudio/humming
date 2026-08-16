@@ -9,11 +9,13 @@ and delete them.
 
 ## Screens
 
+The app is fully greyscale by design — light is the only "color".
+
 | Screen | Description |
 | --- | --- |
-| Onboarding | Brand intro with the liquid-glass button and "Think it / Hum it / Play it" tagline |
-| Record | Dark home screen — tap anywhere and start humming |
-| Listening | Glowing coral orb, live waveform, elapsed timer, stop control |
+| Onboarding | The "humming" wordmark draws itself, shrinks up, and the "Think it / Hum it / Play it" tagline fades in |
+| Home | Rotating brand greeting, liquid-glass orb — tap anywhere and start humming |
+| Recording | A white bloom rises from the bottom and breathes with your voice; tap to stop, hold to pause |
 | Processing | "Capturing melody..." → "Transcribing melody..." |
 | Chords Ready | Detected key, ~BPM, 4/4, chord grid, playback, Record Again / Export MIDI / Save |
 | Library | Saved hums with swipe-to-delete; open any hum to view chords and export |
