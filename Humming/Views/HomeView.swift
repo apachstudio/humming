@@ -20,22 +20,22 @@ struct HomeView: View {
     @State private var isRecordButtonPressed = false
     @State private var isRecordButtonBreathing = false
     @State private var isRecordTransitioning = false
+    /// PR #1 descend: the circle travels down this many points, then rises
+    /// back as Stop once recording is live. Halo stays on the circle.
+    @State private var recordCircleOffset: CGFloat = 0
+    @State private var showsStopControl = false
+
+    private static let recordCircleDescend: CGFloat = 132
 
     var body: some View {
         ZStack {
             switch phase {
-            case .idle:
-                idleScreen
+            case .idle, .recording:
+                captureScreen
                     .transition(.premiumIdleExit)
-            case .recording:
-                ListeningView(
-                    recorder: recorder,
-                    onStop: finishRecording
-                )
-                .transition(.premiumRecordingEnter)
             case .processing:
                 ProcessingView()
-                .transition(.opacity)
+                    .transition(.opacity)
             case .results(let hum):
                 if let audioURL = freshAudioURL {
                     ResultsView(
@@ -66,15 +66,19 @@ struct HomeView: View {
             LibraryView()
         }
         .alert("Microphone access needed", isPresented: $showPermissionAlert) {
-            Button("OK", role: .cancel) {}
+            Button("OK", role: .cancel) {
+                Haptics.light()
+            }
         } message: {
             Text("Enable the microphone in Settings so Humming can hear your melody.")
         }
     }
 
-    // MARK: - Home screen (Figma flow 3, "alt 3")
+    // MARK: - Shared Home / Recording canvas
 
-    private var idleScreen: some View {
+    /// One canvas for idle and recording so the circle never unmounts:
+    /// press → descend with halo → Recording chrome → slide back up as Stop.
+    private var captureScreen: some View {
         ZStack {
             HumTheme.charcoal.ignoresSafeArea()
 
@@ -82,6 +86,7 @@ struct HomeView: View {
                 HStack {
                     Spacer()
                     Button {
+                        Haptics.selection()
                         showLibrary = true
                     } label: {
                         ZStack {
@@ -93,82 +98,70 @@ struct HomeView: View {
                         }
                     }
                     .accessibilityLabel("Your hums")
+                    .allowsHitTesting(phase == .idle && !isRecordTransitioning)
                 }
                 .padding(.horizontal, 24)
                 .padding(.top, 12)
-                .opacity(isRecordTransitioning ? 0 : 1)
-                .offset(y: isRecordTransitioning ? -12 : 0)
-                .animation(.easeInOut(duration: 0.5), value: isRecordTransitioning)
+                .opacity(isIdleChromeVisible ? 1 : 0)
+                .offset(y: isIdleChromeVisible ? 0 : -12)
+                .animation(.easeInOut(duration: 0.5), value: isIdleChromeVisible)
 
                 greeting
                     .padding(.top, 56)
-                    .opacity(isRecordTransitioning ? 0 : 1)
-                    .offset(y: isRecordTransitioning ? -58 : 0)
-                    .blur(radius: isRecordTransitioning ? 10 : 0)
-                    .animation(.easeInOut(duration: 0.72), value: isRecordTransitioning)
+                    .opacity(isIdleChromeVisible ? 1 : 0)
+                    .offset(y: isIdleChromeVisible ? 0 : -58)
+                    .blur(radius: isIdleChromeVisible ? 0 : 10)
+                    .animation(.easeInOut(duration: 0.72), value: isIdleChromeVisible)
 
                 Spacer()
 
                 DarkGlassCircle(
                     size: 170,
+                    glyph: showsStopControl ? .stop : .wave,
                     bloomOpacity: recordButtonBloomOpacity,
                     bloomScale: recordButtonBloomScale,
                     circleAssetName: "liquid-glass-button"
                 )
                 .scaleEffect(recordButtonScale)
-                .opacity(isRecordTransitioning ? 0 : 1)
-                .offset(y: isRecordTransitioning ? 132 : 0)
-                .blur(radius: isRecordTransitioning ? 8 : 0)
-                .background {
-                    Circle()
-                        .fill(Color.white.opacity(isRecordTransitioning ? 0.24 : 0))
-                        .frame(
-                            width: isRecordTransitioning ? 760 : 190,
-                            height: isRecordTransitioning ? 760 : 190
-                        )
-                        .blur(radius: isRecordTransitioning ? 112 : 24)
-                        .offset(y: isRecordTransitioning ? 310 : 0)
-                        .allowsHitTesting(false)
-                }
+                .offset(y: recordCircleOffset)
                 .animation(.easeInOut(duration: 2.8), value: isRecordButtonBreathing)
                 .animation(.spring(response: 0.62, dampingFraction: 0.44), value: isRecordButtonPressed)
-                .animation(.easeInOut(duration: 0.76), value: isRecordTransitioning)
-                .gesture(
-                    DragGesture(minimumDistance: 0)
-                        .onChanged { _ in
-                            guard !isRecordButtonPressed, !isRecordTransitioning else { return }
-                            withAnimation(.spring(response: 0.58, dampingFraction: 0.45)) {
-                                isRecordButtonPressed = true
-                            }
-                        }
-                        .onEnded { _ in
-                            withAnimation(.spring(response: 0.86, dampingFraction: 0.36, blendDuration: 0.12)) {
-                                isRecordButtonPressed = false
-                            }
-                            withAnimation(.easeInOut(duration: 0.76)) {
-                                isRecordTransitioning = true
-                            }
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.64) {
-                                startRecording()
-                            }
-                        }
-                )
-                .accessibilityLabel("Start recording")
+                .animation(.easeOut(duration: 0.15), value: recorder.currentLevel)
+                .animation(.easeInOut(duration: 0.3), value: recorder.isPaused)
+                .gesture(recordCircleGesture)
+                .accessibilityLabel(showsStopControl ? "Stop recording" : "Start recording")
                 .accessibilityAddTraits(.isButton)
 
                 Spacer()
 
-                Text("Tap and start humming")
+                Text("Swipe up or tap to start humming")
                     .font(.system(size: 12, weight: .medium))
                     .foregroundStyle(HumTheme.labelFaint)
                     .padding(.bottom, 20)
-                    .opacity(isRecordTransitioning ? 0 : 1)
-                    .offset(y: isRecordTransitioning ? 40 : 0)
-                    .blur(radius: isRecordTransitioning ? 5 : 0)
-                    .animation(.easeInOut(duration: 0.58), value: isRecordTransitioning)
+                    .opacity(isIdleChromeVisible ? 1 : 0)
+                    .offset(y: isIdleChromeVisible ? 0 : 40)
+                    .blur(radius: isIdleChromeVisible ? 0 : 5)
+                    .animation(.easeInOut(duration: 0.58), value: isIdleChromeVisible)
+            }
+
+            if phase == .recording {
+                ListeningView(recorder: recorder, onStop: finishRecording)
+                    .transition(.premiumRecordingEnter)
             }
         }
         .preferredColorScheme(.dark)
+        .contentShape(Rectangle())
+        .simultaneousGesture(
+            TapGesture().onEnded {
+                guard phase == .recording else { return }
+                Haptics.medium()
+                finishRecording()
+            }
+        )
+        .simultaneousGesture(swipeToRecordGesture)
+        .accessibilityAction(named: "Start recording") {
+            beginRecordingTransition(playsHaptic: true)
+        }
         .task { await runRecordButtonBreathing() }
     }
 
@@ -186,39 +179,126 @@ struct HomeView: View {
         .padding(32)
     }
 
+    private var isIdleChromeVisible: Bool {
+        phase == .idle && !isRecordTransitioning
+    }
+
     private var recordButtonScale: CGFloat {
         if isRecordButtonPressed { return 0.91 }
+        if phase == .recording {
+            let levelBoost = recorder.isPaused ? 0 : recorder.currentLevel
+            return 1 + levelBoost * 0.045
+        }
         return isRecordButtonBreathing ? 1.02 : 0.99
     }
 
     private var recordButtonBloomOpacity: Double {
         if isRecordButtonPressed { return 0.04 }
-        if isRecordTransitioning { return 0 }
+        if phase == .recording {
+            return recorder.isPaused ? 0.38 : 0.82
+        }
+        // Keep the home halo on the circle as it descends — no fade-out,
+        // and no oversized bottom wash to hand off to.
+        if isRecordTransitioning { return 1 }
         return isRecordButtonBreathing ? 1 : 0.5
     }
 
     private var recordButtonBloomScale: CGFloat {
         if isRecordButtonPressed { return 0.82 }
-        if isRecordTransitioning { return 1.85 }
+        if phase == .recording {
+            let levelBoost = recorder.isPaused ? 0 : recorder.currentLevel
+            return (recorder.isPaused ? 0.94 : 1.12) + levelBoost * 0.32
+        }
+        if isRecordTransitioning { return 1.35 }
         return isRecordButtonBreathing ? 1.35 : 1
+    }
+
+    // MARK: - Gestures
+
+    private var recordCircleGesture: some Gesture {
+        DragGesture(minimumDistance: 0)
+            .onChanged { _ in
+                guard !isRecordButtonPressed else { return }
+                if phase == .recording {
+                    Haptics.medium()
+                    withAnimation(.spring(response: 0.58, dampingFraction: 0.45)) {
+                        isRecordButtonPressed = true
+                    }
+                    return
+                }
+                guard !isRecordTransitioning else { return }
+                Haptics.medium()
+                withAnimation(.spring(response: 0.58, dampingFraction: 0.45)) {
+                    isRecordButtonPressed = true
+                }
+            }
+            .onEnded { _ in
+                withAnimation(.spring(response: 0.86, dampingFraction: 0.36, blendDuration: 0.12)) {
+                    isRecordButtonPressed = false
+                }
+                if phase == .recording {
+                    finishRecording()
+                    return
+                }
+                beginRecordingTransition(playsHaptic: false)
+            }
+    }
+
+    private var swipeToRecordGesture: some Gesture {
+        DragGesture(minimumDistance: 24)
+            .onEnded { value in
+                guard phase == .idle else { return }
+                let upwardDistance = max(
+                    -value.translation.height,
+                    -value.predictedEndTranslation.height
+                )
+                let horizontalDistance = max(
+                    abs(value.translation.width),
+                    abs(value.predictedEndTranslation.width)
+                )
+
+                guard upwardDistance >= 72,
+                      upwardDistance > horizontalDistance * 1.15 else {
+                    return
+                }
+
+                beginRecordingTransition(playsHaptic: true)
+            }
     }
 
     // MARK: - Flow
 
+    private func beginRecordingTransition(playsHaptic: Bool) {
+        guard phase == .idle, !isRecordTransitioning else { return }
+        if playsHaptic {
+            Haptics.medium()
+        }
+
+        withAnimation(.easeInOut(duration: 0.76)) {
+            isRecordTransitioning = true
+            recordCircleOffset = Self.recordCircleDescend
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.64) {
+            startRecording()
+        }
+    }
+
     private func startRecording() {
         Task {
             guard await recorder.requestPermission() else {
-                isRecordTransitioning = false
+                resetCaptureCircle()
                 showPermissionAlert = true
                 return
             }
             do {
                 try recorder.start()
+                showsStopControl = true
                 withAnimation(.spring(response: 0.72, dampingFraction: 0.76)) {
                     phase = .recording
+                    recordCircleOffset = 0
                 }
             } catch {
-                isRecordTransitioning = false
+                resetCaptureCircle()
                 showPermissionAlert = true
             }
         }
@@ -226,13 +306,20 @@ struct HomeView: View {
 
     private func runRecordButtonBreathing() async {
         isRecordButtonBreathing = false
-        isRecordTransitioning = false
         while !Task.isCancelled {
+            guard phase == .idle, !isRecordTransitioning else {
+                if isRecordButtonBreathing {
+                    isRecordButtonBreathing = false
+                }
+                try? await Task.sleep(for: .milliseconds(200))
+                continue
+            }
             withAnimation(.easeInOut(duration: 2.8)) {
                 isRecordButtonBreathing = true
             }
             try? await Task.sleep(for: .seconds(2.8))
 
+            guard phase == .idle, !isRecordTransitioning else { continue }
             withAnimation(.easeInOut(duration: 2.8)) {
                 isRecordButtonBreathing = false
             }
@@ -241,6 +328,7 @@ struct HomeView: View {
     }
 
     private func finishRecording() {
+        guard phase == .recording else { return }
         guard let result = recorder.stop() else {
             backToIdle()
             return
@@ -280,7 +368,17 @@ struct HomeView: View {
         freshAudioURL = nil
     }
 
+    private func resetCaptureCircle() {
+        withAnimation(.easeInOut(duration: 0.4)) {
+            isRecordTransitioning = false
+            recordCircleOffset = 0
+            showsStopControl = false
+            isRecordButtonPressed = false
+        }
+    }
+
     private func backToIdle() {
+        resetCaptureCircle()
         phase = .idle
     }
 }
