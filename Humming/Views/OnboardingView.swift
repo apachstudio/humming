@@ -39,10 +39,7 @@ struct OnboardingView: View {
             }
         }
         .contentShape(Rectangle())
-        .onTapGesture {
-            Haptics.light()
-            finish()
-        }
+        .onTapGesture { finish() }
         .preferredColorScheme(.dark)
         .statusBarHidden()
         .onAppear { runSequence() }

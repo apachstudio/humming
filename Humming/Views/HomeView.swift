@@ -68,9 +68,7 @@ struct HomeView: View {
             LibraryView()
         }
         .alert("Microphone access needed", isPresented: $showPermissionAlert) {
-            Button("OK", role: .cancel) {
-                Haptics.light()
-            }
+            Button("OK", role: .cancel) {}
         } message: {
             Text("Enable the microphone in Settings so Humming can hear your melody.")
         }
@@ -86,7 +84,6 @@ struct HomeView: View {
                 HStack {
                     Spacer()
                     Button {
-                        Haptics.selection()
                         showLibrary = true
                     } label: {
                         ZStack {
@@ -134,7 +131,6 @@ struct HomeView: View {
                     DragGesture(minimumDistance: 0)
                         .onChanged { _ in
                             guard !isRecordButtonPressed, !isRecordTransitioning else { return }
-                            Haptics.medium()
                             withAnimation(.spring(response: 0.58, dampingFraction: 0.45)) {
                                 isRecordButtonPressed = true
                             }

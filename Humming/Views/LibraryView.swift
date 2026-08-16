@@ -52,7 +52,6 @@ struct LibraryView: View {
     private var header: some View {
         HStack {
             Button {
-                Haptics.light()
                 dismiss()
             } label: {
                 Image(systemName: "chevron.left")
@@ -88,7 +87,6 @@ struct LibraryView: View {
         List {
             ForEach(store.hums) { hum in
                 Button {
-                    Haptics.selection()
                     selectedHum = hum
                 } label: {
                     HumRow(hum: hum)
@@ -99,7 +97,6 @@ struct LibraryView: View {
                 .listRowBackground(Color.clear)
                 .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                     Button(role: .destructive) {
-                        Haptics.warning()
                         store.delete(hum)
                     } label: {
                         Label("Delete", systemImage: "trash")

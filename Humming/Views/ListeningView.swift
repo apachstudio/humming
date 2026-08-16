@@ -61,10 +61,7 @@ struct ListeningView: View {
             }
         }
         .contentShape(Rectangle())
-        .onTapGesture {
-            Haptics.medium()
-            onStop()
-        }
+        .onTapGesture { onStop() }
         .preferredColorScheme(.dark)
         .onAppear {
             controlsVisible = false
