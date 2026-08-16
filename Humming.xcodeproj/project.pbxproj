@@ -1,0 +1,436 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 56;
+	objects = {
+		A0000000000000000000001D /* HummingApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HummingApp.swift; sourceTree = "<group>"; };
+		A0000000000000000000001E /* AppModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModel.swift; sourceTree = "<group>"; };
+		A0000000000000000000001F /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
+		A00000000000000000000020 /* Pitch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Pitch.swift; sourceTree = "<group>"; };
+		A00000000000000000000021 /* Chords.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Chords.swift; sourceTree = "<group>"; };
+		A00000000000000000000022 /* MIDIFile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MIDIFile.swift; sourceTree = "<group>"; };
+		A00000000000000000000023 /* Titles.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Titles.swift; sourceTree = "<group>"; };
+		A00000000000000000000024 /* HumRecorder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HumRecorder.swift; sourceTree = "<group>"; };
+		A00000000000000000000025 /* HumPlayer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HumPlayer.swift; sourceTree = "<group>"; };
+		A00000000000000000000026 /* LibraryStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryStore.swift; sourceTree = "<group>"; };
+		A00000000000000000000027 /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
+		A00000000000000000000028 /* SplashView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SplashView.swift; sourceTree = "<group>"; };
+		A00000000000000000000029 /* HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeView.swift; sourceTree = "<group>"; };
+		A0000000000000000000002A /* RecordingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordingView.swift; sourceTree = "<group>"; };
+		A0000000000000000000002B /* ProcessingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProcessingView.swift; sourceTree = "<group>"; };
+		A0000000000000000000002C /* ResultsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResultsView.swift; sourceTree = "<group>"; };
+		A0000000000000000000002D /* LibraryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryView.swift; sourceTree = "<group>"; };
+		A0000000000000000000002E /* DetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DetailView.swift; sourceTree = "<group>"; };
+		A0000000000000000000002F /* Components.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Components.swift; sourceTree = "<group>"; };
+		A00000000000000000000012 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		A00000000000000000000013 /* HummingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HummingTests.swift; sourceTree = "<group>"; };
+		A00000000000000000000004 /* Humming.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Humming.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		A00000000000000000000005 /* HummingTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = HummingTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		A00000000000000000000030 /* HummingApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0000000000000000000001D /* HummingApp.swift */; };
+		A00000000000000000000031 /* AppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0000000000000000000001E /* AppModel.swift */; };
+		A00000000000000000000032 /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0000000000000000000001F /* Models.swift */; };
+		A00000000000000000000033 /* Pitch.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000020 /* Pitch.swift */; };
+		A00000000000000000000034 /* Chords.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000021 /* Chords.swift */; };
+		A00000000000000000000035 /* MIDIFile.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000022 /* MIDIFile.swift */; };
+		A00000000000000000000036 /* Titles.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000023 /* Titles.swift */; };
+		A00000000000000000000037 /* HumRecorder.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000024 /* HumRecorder.swift */; };
+		A00000000000000000000038 /* HumPlayer.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000025 /* HumPlayer.swift */; };
+		A00000000000000000000039 /* LibraryStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000026 /* LibraryStore.swift */; };
+		A0000000000000000000003A /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000027 /* RootView.swift */; };
+		A0000000000000000000003B /* SplashView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000028 /* SplashView.swift */; };
+		A0000000000000000000003C /* HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000029 /* HomeView.swift */; };
+		A0000000000000000000003D /* RecordingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0000000000000000000002A /* RecordingView.swift */; };
+		A0000000000000000000003E /* ProcessingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0000000000000000000002B /* ProcessingView.swift */; };
+		A0000000000000000000003F /* ResultsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0000000000000000000002C /* ResultsView.swift */; };
+		A00000000000000000000040 /* LibraryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0000000000000000000002D /* LibraryView.swift */; };
+		A00000000000000000000041 /* DetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0000000000000000000002E /* DetailView.swift */; };
+		A00000000000000000000042 /* Components.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0000000000000000000002F /* Components.swift */; };
+		A00000000000000000000044 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000012 /* Assets.xcassets */; };
+		A00000000000000000000043 /* HummingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000013 /* HummingTests.swift */; };
+		A0000000000000000000000D /* Core */ = {
+			isa = PBXGroup;
+			children = (
+				A0000000000000000000001F /* Models.swift */,
+				A00000000000000000000020 /* Pitch.swift */,
+				A00000000000000000000021 /* Chords.swift */,
+				A00000000000000000000022 /* MIDIFile.swift */,
+				A00000000000000000000023 /* Titles.swift */,
+			);
+			path = Core;
+			sourceTree = "<group>";
+		};
+		A0000000000000000000000E /* Audio */ = {
+			isa = PBXGroup;
+			children = (
+				A00000000000000000000024 /* HumRecorder.swift */,
+				A00000000000000000000025 /* HumPlayer.swift */,
+				A00000000000000000000026 /* LibraryStore.swift */,
+			);
+			path = Audio;
+			sourceTree = "<group>";
+		};
+		A0000000000000000000000F /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				A00000000000000000000027 /* RootView.swift */,
+				A00000000000000000000028 /* SplashView.swift */,
+				A00000000000000000000029 /* HomeView.swift */,
+				A0000000000000000000002A /* RecordingView.swift */,
+				A0000000000000000000002B /* ProcessingView.swift */,
+				A0000000000000000000002C /* ResultsView.swift */,
+				A0000000000000000000002D /* LibraryView.swift */,
+				A0000000000000000000002E /* DetailView.swift */,
+				A0000000000000000000002F /* Components.swift */,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
+		A0000000000000000000000C /* Humming */ = {
+			isa = PBXGroup;
+			children = (
+				A0000000000000000000001D /* HummingApp.swift */,
+				A0000000000000000000001E /* AppModel.swift */,
+				A0000000000000000000000D /* Core */,
+				A0000000000000000000000E /* Audio */,
+				A0000000000000000000000F /* Views */,
+				A00000000000000000000012 /* Assets.xcassets */,
+			);
+			path = Humming;
+			sourceTree = "<group>";
+		};
+		A00000000000000000000010 /* HummingTests */ = {
+			isa = PBXGroup;
+			children = (
+				A00000000000000000000013 /* HummingTests.swift */,
+			);
+			path = HummingTests;
+			sourceTree = "<group>";
+		};
+		A00000000000000000000011 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				A00000000000000000000004 /* Humming.app */,
+				A00000000000000000000005 /* HummingTests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		A0000000000000000000000B = {
+			isa = PBXGroup;
+			children = (
+				A0000000000000000000000C /* Humming */,
+				A00000000000000000000010 /* HummingTests */,
+				A00000000000000000000011 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		A00000000000000000000006 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A00000000000000000000030 /* HummingApp.swift in Sources */,
+				A00000000000000000000031 /* AppModel.swift in Sources */,
+				A00000000000000000000032 /* Models.swift in Sources */,
+				A00000000000000000000033 /* Pitch.swift in Sources */,
+				A00000000000000000000034 /* Chords.swift in Sources */,
+				A00000000000000000000035 /* MIDIFile.swift in Sources */,
+				A00000000000000000000036 /* Titles.swift in Sources */,
+				A00000000000000000000037 /* HumRecorder.swift in Sources */,
+				A00000000000000000000038 /* HumPlayer.swift in Sources */,
+				A00000000000000000000039 /* LibraryStore.swift in Sources */,
+				A0000000000000000000003A /* RootView.swift in Sources */,
+				A0000000000000000000003B /* SplashView.swift in Sources */,
+				A0000000000000000000003C /* HomeView.swift in Sources */,
+				A0000000000000000000003D /* RecordingView.swift in Sources */,
+				A0000000000000000000003E /* ProcessingView.swift in Sources */,
+				A0000000000000000000003F /* ResultsView.swift in Sources */,
+				A00000000000000000000040 /* LibraryView.swift in Sources */,
+				A00000000000000000000041 /* DetailView.swift in Sources */,
+				A00000000000000000000042 /* Components.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A00000000000000000000007 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A00000000000000000000043 /* HummingTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A00000000000000000000008 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A00000000000000000000044 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A00000000000000000000009 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A0000000000000000000000A /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A00000000000000000000017 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.0;
+
+				ENABLE_TESTABILITY = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		A00000000000000000000018 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.0;
+
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				SWIFT_COMPILATION_MODE = wholemodule;
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		A00000000000000000000019 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = humming;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.music";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Humming listens to your melody so it can turn it into chords and a MIDI file for GarageBand.";
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = studio.apache.humming;
+				PRODUCT_NAME = Humming;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_STRICT_CONCURRENCY = targeted;
+				TARGETED_DEVICE_FAMILY = 1;
+
+			};
+			name = Debug;
+		};
+		A0000000000000000000001A /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = humming;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.music";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Humming listens to your melody so it can turn it into chords and a MIDI file for GarageBand.";
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = studio.apache.humming;
+				PRODUCT_NAME = Humming;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_STRICT_CONCURRENCY = targeted;
+				TARGETED_DEVICE_FAMILY = 1;
+
+			};
+			name = Release;
+		};
+		A0000000000000000000001B /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = studio.apache.humming.tests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Humming.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Humming";
+
+			};
+			name = Debug;
+		};
+		A0000000000000000000001C /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = studio.apache.humming.tests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Humming.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Humming";
+
+			};
+			name = Release;
+		};
+		A00000000000000000000014 /* Build configuration list for PBXProject "Humming" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A00000000000000000000017 /* Debug */,
+				A00000000000000000000018 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		A00000000000000000000015 /* Build configuration list for PBXNativeTarget "Humming" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A00000000000000000000019 /* Debug */,
+				A0000000000000000000001A /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		A00000000000000000000016 /* Build configuration list for PBXNativeTarget "HummingTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A0000000000000000000001B /* Debug */,
+				A0000000000000000000001C /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		A00000000000000000000002 /* Humming */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A00000000000000000000015 /* Build configuration list for PBXNativeTarget "Humming" */;
+			buildPhases = (
+				A00000000000000000000006 /* Sources */,
+				A00000000000000000000009 /* Frameworks */,
+				A00000000000000000000008 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = Humming;
+			productName = Humming;
+			productReference = A00000000000000000000004 /* Humming.app */;
+			productType = "com.apple.product-type.application";
+		};
+		A00000000000000000000046 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = A00000000000000000000001 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = A00000000000000000000002;
+			remoteInfo = Humming;
+		};
+		A00000000000000000000045 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = A00000000000000000000002 /* Humming */;
+			targetProxy = A00000000000000000000046 /* PBXContainerItemProxy */;
+		};
+		A00000000000000000000003 /* HummingTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A00000000000000000000016 /* Build configuration list for PBXNativeTarget "HummingTests" */;
+			buildPhases = (
+				A00000000000000000000007 /* Sources */,
+				A0000000000000000000000A /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				A00000000000000000000045 /* PBXTargetDependency */,
+			);
+			name = HummingTests;
+			productName = HummingTests;
+			productReference = A00000000000000000000005 /* HummingTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		A00000000000000000000001 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 1600;
+				LastUpgradeCheck = 1600;
+				TargetAttributes = {
+					A00000000000000000000002 = {
+						CreatedOnToolsVersion = 16.0;
+					};
+					A00000000000000000000003 = {
+						CreatedOnToolsVersion = 16.0;
+						TestTargetID = A00000000000000000000002;
+					};
+				};
+			};
+			buildConfigurationList = A00000000000000000000014 /* Build configuration list for PBXProject "Humming" */;
+			compatibilityVersion = "Xcode 15.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = A0000000000000000000000B;
+			productRefGroup = A00000000000000000000011 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				A00000000000000000000002 /* Humming */,
+				A00000000000000000000003 /* HummingTests */,
+			);
+		};
+	};
+	rootObject = A00000000000000000000001 /* Project object */;
+}

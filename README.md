@@ -1,41 +1,37 @@
 # humming
 
-Lean app that turns a hum into chords and a MIDI file you can open in GarageBand.
+iOS app (SwiftUI, iOS 17+) that turns a hum into chords and a MIDI file you can open in GarageBand.
 
-Hum a melody. The app listens, estimates key and tempo, maps the phrase to a chord progression, and lets you save it in a local library — or export a `.mid` with melody + chords.
+Hum a melody. The app listens, estimates key and tempo, maps the phrase to a chord progression, and lets you save it in a local library — or share a `.mid` into GarageBand.
 
 ## Screens
 
 Matches the Figma core flow:
 
 1. **Splash** — Think it / Hum it / Play it
-2. **Home** — one action: tap to hum
+2. **Home** — TAP TO HUM
 3. **Recording** — timer + live waveform
 4. **Processing** — translating the hum
-5. **Results** — detected chords, key, tempo, play, export MIDI, save
-6. **Library / Melody details** — view and delete saved hums
+5. **Detection Complete** — chords, key, tempo, play, export MIDI, save
+6. **Your Hums / Melody Details** — library with swipe-to-delete
 
 ## Run
 
-```bash
-npm install
-npm run dev
-```
+Open `Humming.xcodeproj` in Xcode 15 or later.
 
-Then open the local URL. Allow the microphone when the browser asks.
+1. Select the **Humming** scheme and an iPhone simulator or device
+2. Set your **Team** under Signing & Capabilities
+3. Run (`⌘R`)
 
-No mic? Use **or try a sample melody** on the home screen.
+Allow the microphone when iOS asks. In the simulator, use **or try a sample melody** if the mic is unavailable.
 
-```bash
-npm test
-npm run build
-```
+Unit tests: Product → Test (`⌘U`). They cover pitch detection, key/chord mapping, MIDI output, and titles.
 
 ## MIDI
 
-Export writes a Standard MIDI File (melody + block chords). AirDrop or download the `.mid` and open it in GarageBand, Logic, or any DAW.
+**Export MIDI** writes a Standard MIDI File (melody + block chords) and opens the iOS share sheet. Choose GarageBand, Files, or AirDrop.
 
-Hums are stored in this browser only (`localStorage`). Deleting a row removes it from the library.
+Hums are stored on-device (Application Support). Deleting a row removes it from the library.
 
 ## How analysis works
 
