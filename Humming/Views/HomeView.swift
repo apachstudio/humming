@@ -97,7 +97,7 @@ struct HomeView: View {
 
                 Spacer()
 
-                LiquidGlassCircle(size: 150)
+                DarkGlassCircle(size: 170)
 
                 Spacer()
 
