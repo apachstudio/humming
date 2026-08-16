@@ -143,12 +143,7 @@ struct HomeView: View {
                             withAnimation(.spring(response: 0.86, dampingFraction: 0.36, blendDuration: 0.12)) {
                                 isRecordButtonPressed = false
                             }
-                            withAnimation(.easeInOut(duration: 0.76)) {
-                                isRecordTransitioning = true
-                            }
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.64) {
-                                startRecording()
-                            }
+                            beginRecordingTransition(playsHaptic: false)
                         }
                 )
                 .accessibilityLabel("Start recording")
@@ -156,7 +151,7 @@ struct HomeView: View {
 
                 Spacer()
 
-                Text("Tap and start humming")
+                Text("Swipe up or tap to start humming")
                     .font(.system(size: 12, weight: .medium))
                     .foregroundStyle(HumTheme.labelFaint)
                     .padding(.bottom, 20)
@@ -167,6 +162,11 @@ struct HomeView: View {
             }
         }
         .preferredColorScheme(.dark)
+        .contentShape(Rectangle())
+        .simultaneousGesture(swipeToRecordGesture)
+        .accessibilityAction(named: "Start recording") {
+            beginRecordingTransition(playsHaptic: true)
+        }
         .task { await runRecordButtonBreathing() }
     }
 
@@ -202,6 +202,41 @@ struct HomeView: View {
     }
 
     // MARK: - Flow
+
+    private var swipeToRecordGesture: some Gesture {
+        DragGesture(minimumDistance: 24)
+            .onEnded { value in
+                let upwardDistance = max(
+                    -value.translation.height,
+                    -value.predictedEndTranslation.height
+                )
+                let horizontalDistance = max(
+                    abs(value.translation.width),
+                    abs(value.predictedEndTranslation.width)
+                )
+
+                guard upwardDistance >= 72,
+                      upwardDistance > horizontalDistance * 1.15 else {
+                    return
+                }
+
+                beginRecordingTransition(playsHaptic: true)
+            }
+    }
+
+    private func beginRecordingTransition(playsHaptic: Bool) {
+        guard phase == .idle, !isRecordTransitioning else { return }
+        if playsHaptic {
+            Haptics.medium()
+        }
+
+        withAnimation(.easeInOut(duration: 0.76)) {
+            isRecordTransitioning = true
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.64) {
+            startRecording()
+        }
+    }
 
     private func startRecording() {
         Task {
