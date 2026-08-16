@@ -23,11 +23,17 @@ struct LiquidGlassCircle: View {
 }
 
 /// The dark embossed record button: a charcoal disc lifted by a thin rim light
-/// (strongest at the top-left), a soft white bloom, a drop shadow, and the
-/// brand wave glyph centred inside.
+/// (strongest at the top-left), a soft white bloom, a drop shadow, and a
+/// centred glyph (wave on Home, stop while recording).
 struct DarkGlassCircle: View {
+    enum Glyph {
+        case wave
+        case stop
+    }
+
     var size: CGFloat
     var showsGlyph: Bool = true
+    var glyph: Glyph = .wave
     var showsBloom: Bool = true
     var bloomOpacity: Double = 1
     var bloomScale: CGFloat = 1
@@ -86,10 +92,17 @@ struct DarkGlassCircle: View {
             }
 
             if showsGlyph {
-                Image("record-wave")
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: size * 0.36, height: size * 0.31)
+                switch glyph {
+                case .wave:
+                    Image("record-wave")
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: size * 0.36, height: size * 0.31)
+                case .stop:
+                    Image(systemName: "stop.fill")
+                        .font(.system(size: size * 0.2, weight: .semibold))
+                        .foregroundStyle(.white.opacity(0.92))
+                }
             }
         }
     }
