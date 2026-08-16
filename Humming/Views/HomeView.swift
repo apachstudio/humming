@@ -20,7 +20,6 @@ struct HomeView: View {
     @State private var isRecordButtonPressed = false
     @State private var isRecordButtonBreathing = false
     @State private var isRecordTransitioning = false
-    @Namespace private var recordCircleNamespace
 
     var body: some View {
         ZStack {
@@ -31,10 +30,9 @@ struct HomeView: View {
             case .recording:
                 ListeningView(
                     recorder: recorder,
-                    recordCircleNamespace: recordCircleNamespace,
                     onStop: finishRecording
                 )
-                .transition(.opacity)
+                .transition(.premiumRecordingEnter)
             case .processing:
                 ProcessingView()
                 .transition(.opacity)
@@ -117,13 +115,21 @@ struct HomeView: View {
                     bloomScale: recordButtonBloomScale,
                     circleAssetName: "liquid-glass-button"
                 )
-                .matchedGeometryEffect(
-                    id: "record-circle",
-                    in: recordCircleNamespace,
-                    properties: .frame,
-                    anchor: .center
-                )
                 .scaleEffect(recordButtonScale)
+                .opacity(isRecordTransitioning ? 0 : 1)
+                .offset(y: isRecordTransitioning ? 132 : 0)
+                .blur(radius: isRecordTransitioning ? 8 : 0)
+                .background {
+                    Circle()
+                        .fill(Color.white.opacity(isRecordTransitioning ? 0.24 : 0))
+                        .frame(
+                            width: isRecordTransitioning ? 760 : 190,
+                            height: isRecordTransitioning ? 760 : 190
+                        )
+                        .blur(radius: isRecordTransitioning ? 112 : 24)
+                        .offset(y: isRecordTransitioning ? 310 : 0)
+                        .allowsHitTesting(false)
+                }
                 .animation(.easeInOut(duration: 2.8), value: isRecordButtonBreathing)
                 .animation(.spring(response: 0.62, dampingFraction: 0.44), value: isRecordButtonPressed)
                 .animation(.easeInOut(duration: 0.76), value: isRecordTransitioning)
@@ -187,13 +193,13 @@ struct HomeView: View {
 
     private var recordButtonBloomOpacity: Double {
         if isRecordButtonPressed { return 0.04 }
-        if isRecordTransitioning { return 1 }
+        if isRecordTransitioning { return 0 }
         return isRecordButtonBreathing ? 1 : 0.5
     }
 
     private var recordButtonBloomScale: CGFloat {
         if isRecordButtonPressed { return 0.82 }
-        if isRecordTransitioning { return 1.18 }
+        if isRecordTransitioning { return 1.85 }
         return isRecordButtonBreathing ? 1.35 : 1
     }
 
@@ -279,9 +285,34 @@ struct HomeView: View {
     }
 }
 
+private struct PremiumTransitionModifier: ViewModifier {
+    let opacity: Double
+    let scale: CGFloat
+    let blurRadius: CGFloat
+    let yOffset: CGFloat
+
+    func body(content: Content) -> some View {
+        content
+            .opacity(opacity)
+            .scaleEffect(scale)
+            .blur(radius: blurRadius)
+            .offset(y: yOffset)
+    }
+}
+
 private extension AnyTransition {
     static var premiumIdleExit: AnyTransition {
-        .opacity
+        .modifier(
+            active: PremiumTransitionModifier(opacity: 0, scale: 1.08, blurRadius: 18, yOffset: -24),
+            identity: PremiumTransitionModifier(opacity: 1, scale: 1, blurRadius: 0, yOffset: 0)
+        )
+    }
+
+    static var premiumRecordingEnter: AnyTransition {
+        .modifier(
+            active: PremiumTransitionModifier(opacity: 0, scale: 0.9, blurRadius: 24, yOffset: 52),
+            identity: PremiumTransitionModifier(opacity: 1, scale: 1, blurRadius: 0, yOffset: 0)
+        )
     }
 }
 
