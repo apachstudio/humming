@@ -84,7 +84,7 @@ export default function App() {
       }
       setError(null)
       setScreen({ name: 'results', hum, saved: false })
-    }, 1400)
+    }, 1800)
     return () => window.clearTimeout(id)
   }, [screen, library])
 
