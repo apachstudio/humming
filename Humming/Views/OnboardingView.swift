@@ -1,15 +1,22 @@
 import SwiftUI
 
-/// First-launch sequence (Figma flow 3):
-/// 1. The "humming" wordmark draws itself as a single stroke.
-/// 2. It shrinks upward while the tagline fades in beneath it.
-/// 3. Crossfade to home (handled by RootView).
+/// First-launch sequence:
+/// 1. The "humming" wordmark fades in with a restrained micro-scale.
+/// 2. The wordmark fades away cleanly.
+/// 3. "Think it", "Hum it", and "Play it" fade in one after another.
 /// Tap anywhere to skip.
 struct OnboardingView: View {
     var onFinished: () -> Void
 
-    @State private var drawProgress: CGFloat = 0
-    @State private var compact = false
+    @State private var logoOpacity: Double = 0
+    @State private var logoScale: CGFloat = 0.992
+    @State private var logoOffset: CGFloat = 2
+    @State private var thinkOpacity: Double = 0
+    @State private var humOpacity: Double = 0
+    @State private var playOpacity: Double = 0
+    @State private var thinkOffset: CGFloat = 7
+    @State private var humOffset: CGFloat = 7
+    @State private var playOffset: CGFloat = 7
     @State private var finished = false
 
     var body: some View {
@@ -20,20 +27,22 @@ struct OnboardingView: View {
             ZStack {
                 HumTheme.charcoal.ignoresSafeArea()
 
-                WordmarkView(progress: drawProgress)
-                    .frame(width: compact ? 84 : 200)
-                    .position(
-                        x: width / 2,
-                        y: compact ? height * 0.42 : height * 0.5
-                    )
+                WordmarkView()
+                    .frame(width: min(width * 0.3, 214))
+                    .scaleEffect(logoScale)
+                    .opacity(logoOpacity)
+                    .offset(y: logoOffset)
+                    .position(x: width / 2, y: height * 0.48)
 
                 tagline
-                    .position(x: width / 2, y: height * 0.56)
-                    .opacity(compact ? 1 : 0)
+                    .position(x: width / 2, y: height * 0.5)
             }
         }
         .contentShape(Rectangle())
-        .onTapGesture { finish() }
+        .onTapGesture {
+            Haptics.light()
+            finish()
+        }
         .preferredColorScheme(.dark)
         .statusBarHidden()
         .onAppear { runSequence() }
@@ -43,31 +52,63 @@ struct OnboardingView: View {
     private var tagline: some View {
         VStack(spacing: 4) {
             Text("Think it")
-                .font(.system(size: 20, weight: .light))
-                .foregroundStyle(Color(hex: 0x8F8F8F))
+                .font(.system(size: 18, weight: .light))
+                .foregroundStyle(Color(hex: 0x3D3D3D))
+                .opacity(thinkOpacity)
+                .offset(y: thinkOffset)
+
             Text("Hum it")
-                .font(.system(size: 20, weight: .semibold))
-                .foregroundStyle(Color(hex: 0xE2E2E2))
+                .font(.system(size: 24, weight: .regular))
+                .foregroundStyle(Color(hex: 0x919191))
+                .opacity(humOpacity)
+                .offset(y: humOffset)
+
             Text("Play it")
-                .font(.system(size: 24, weight: .bold))
-                .foregroundStyle(.white)
+                .font(.system(size: 32, weight: .semibold))
+                .foregroundStyle(Color(hex: 0xEFEFEF))
+                .opacity(playOpacity)
+                .offset(y: playOffset)
         }
-        .kerning(-0.4)
+        .multilineTextAlignment(.center)
     }
 
     private func runSequence() {
-        // 1. Draw the wordmark stroke.
-        withAnimation(.easeInOut(duration: 1.2)) {
-            drawProgress = 1
+        withAnimation(.easeOut(duration: 0.85)) {
+            logoOpacity = 1
+            logoScale = 1
+            logoOffset = 0
         }
-        // 2. Shrink up, reveal the tagline.
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-            withAnimation(.spring(response: 0.6, dampingFraction: 0.85)) {
-                compact = true
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.55) {
+            withAnimation(.easeInOut(duration: 0.65)) {
+                logoOpacity = 0
+                logoScale = 0.998
+                logoOffset = -3
             }
         }
-        // 3. Hand off to home.
-        DispatchQueue.main.asyncAfter(deadline: .now() + 3.4) {
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.35) {
+            withAnimation(.easeOut(duration: 0.6)) {
+                thinkOpacity = 1
+                thinkOffset = 0
+            }
+        }
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.95) {
+            withAnimation(.easeOut(duration: 0.6)) {
+                humOpacity = 1
+                humOffset = 0
+            }
+        }
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 3.55) {
+            withAnimation(.easeOut(duration: 0.6)) {
+                playOpacity = 1
+                playOffset = 0
+            }
+        }
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 5.1) {
             finish()
         }
     }

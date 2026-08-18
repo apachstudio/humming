@@ -1,7 +1,6 @@
 import SwiftUI
 
-/// "Chords Ready" screen (Figma 4:3). Light theme: hum header, key/BPM
-/// meta, chord grid, playback card and actions.
+/// Dark results screen: analyzed hum name, detected meta, chord grid, playback and actions.
 struct ResultsView: View {
     enum Mode {
         case fresh(
@@ -17,8 +16,14 @@ struct ResultsView: View {
     let mode: Mode
 
     @StateObject private var player = PlayerModel()
+    @StateObject private var chordPlayer = ChordPreviewPlayer()
     @State private var name: String
     @State private var midiURL: URL?
+    @State private var isTextVisible = false
+    @State private var isLeaving = false
+    @State private var scrollContentOffset: CGFloat = 0
+
+    private let contentInset: CGFloat = 24
 
     init(hum: Hum, audioURL: URL, mode: Mode) {
         self.hum = hum
@@ -27,44 +32,80 @@ struct ResultsView: View {
         _name = State(initialValue: hum.name)
     }
 
-    private var headline: String {
-        if case .saved = mode { return "Saved Hum" }
-        return "Chords Ready"
-    }
-
     var body: some View {
-        ZStack {
-            Color.white.ignoresSafeArea()
+        GeometryReader { proxy in
+            let contentX = proxy.safeAreaInsets.leading + contentInset
+            let contentWidth = max(
+                0,
+                proxy.size.width
+                - proxy.safeAreaInsets.leading
+                - proxy.safeAreaInsets.trailing
+                - contentInset * 2
+            )
 
-            VStack(spacing: 0) {
-                header
-                    .padding(.horizontal, 24)
-                    .frame(height: 56)
+            ZStack(alignment: .topLeading) {
+                HumTheme.charcoal.ignoresSafeArea()
+                resultsGlow
 
-                ScrollView(showsIndicators: false) {
-                    VStack(alignment: .leading, spacing: 16) {
-                        humInfo
-                        metaRow
-                        chordSection
-                            .padding(.top, 16)
-                        playbackCard
-                            .padding(.top, 16)
-                        actions
-                            .padding(.top, 4)
-                            .padding(.bottom, 32)
+                VStack(spacing: 0) {
+                    ScrollView(showsIndicators: false) {
+                        VStack(alignment: .leading, spacing: 12) {
+                            metaRow
+                                .premiumTextReveal(isTextVisible, yOffset: 16, blur: 9)
+                            chordSection
+                                .padding(.top, 24)
+                                .premiumTextReveal(isTextVisible, yOffset: 20, blur: 10)
+                            playbackCard
+                                .padding(.top, 24)
+                                .premiumTextReveal(isTextVisible, yOffset: 22, blur: 10)
+                        }
+                        .frame(width: contentWidth, alignment: .leading)
+                        .padding(.top, 72)
+                        .padding(.bottom, 128)
+                        .background(
+                            GeometryReader { scrollProxy in
+                                Color.clear.preference(
+                                    key: ResultsScrollOffsetPreferenceKey.self,
+                                    value: scrollProxy.frame(in: .named("resultsScroll")).minY
+                                )
+                            }
+                        )
+                        .clipped()
+                        .frame(maxWidth: .infinity)
                     }
-                    .padding(.horizontal, 24)
-                    .padding(.top, 16)
+                    .coordinateSpace(name: "resultsScroll")
+                    .onPreferenceChange(ResultsScrollOffsetPreferenceKey.self) { value in
+                        scrollContentOffset = value
+                    }
+                    .clipped()
                 }
+                .frame(width: contentWidth, height: proxy.size.height)
+                .offset(x: contentX)
+
+                header
+                    .frame(width: contentWidth, height: 52)
+                    .offset(x: contentX)
+
+                VStack {
+                    Spacer()
+                    actions
+                        .frame(width: min(contentWidth, 220))
+                        .premiumTextReveal(isTextVisible, yOffset: 18, blur: 8)
+                        .padding(.bottom, max(proxy.safeAreaInsets.bottom, 12))
+                }
+                .frame(width: contentWidth, height: proxy.size.height)
+                .offset(x: contentX)
             }
         }
-        .preferredColorScheme(.light)
+        .preferredColorScheme(.dark)
         .onAppear {
+            runTextEntrance()
             player.load(url: audioURL)
             midiURL = try? MIDIExporter.export(hum: currentHum)
         }
         .onDisappear {
             player.stop()
+            chordPlayer.stop()
         }
     }
 
@@ -75,219 +116,390 @@ struct ResultsView: View {
         return hum
     }
 
+    private var compactTitle: String {
+        currentHum.name
+    }
+
+    private var compactTitleProgress: Double {
+        min(max(Double((-scrollContentOffset - 28) / 44), 0), 1)
+    }
+
+    private var recordedDateLabel: String {
+        "Recorded \(hum.createdAt.formatted(date: .abbreviated, time: .shortened))"
+    }
+
     // MARK: - Header
 
     private var header: some View {
-        HStack {
+        HStack(spacing: 12) {
             Button {
+                Haptics.light()
                 switch mode {
-                case .fresh(_, _, let onClose): onClose()
-                case .saved(_, let onBack): onBack()
+                case .fresh(_, _, let onClose): leaveResults(onClose)
+                case .saved(_, let onBack): leaveResults(onBack)
                 }
             } label: {
-                Image(systemName: "chevron.left")
-                    .font(.system(size: 17, weight: .semibold))
-                    .foregroundStyle(HumTheme.ink)
-                    .frame(width: 44, height: 44, alignment: .leading)
-                    .contentShape(Rectangle())
+                darkMaterialIcon(systemName: "chevron.left", accessibilityLabel: "Back")
             }
-            .accessibilityLabel("Back")
+            .buttonStyle(.plain)
 
-            Spacer()
+            Text(compactTitle)
+                .font(.system(size: 24, weight: .regular))
+                .lineLimit(1)
+                .truncationMode(.tail)
+                .foregroundStyle(Color.white.opacity(0.5))
+                .frame(maxWidth: .infinity, alignment: .center)
 
-            Text(headline.uppercased())
-                .font(.system(size: 14))
-                .kerning(0.55)
-                .foregroundStyle(HumTheme.grayText)
+            Color.clear
+                .frame(width: 44, height: 44)
         }
     }
 
+   
+    
     // MARK: - Hum info
 
     private var humInfo: some View {
-        HStack(spacing: 12) {
-            Circle()
-                .fill(HumTheme.avatarGradient)
-                .frame(width: 48, height: 48)
-
-            VStack(alignment: .leading, spacing: 0) {
-                if case .fresh = mode {
-                    TextField("Name your hum", text: $name)
-                        .font(.system(size: 20, weight: .medium))
-                        .foregroundStyle(HumTheme.ink)
-                        .submitLabel(.done)
-                        .onSubmit {
-                            midiURL = try? MIDIExporter.export(hum: currentHum)
-                        }
-                } else {
-                    Text(hum.name)
-                        .font(.system(size: 20, weight: .medium))
-                        .foregroundStyle(HumTheme.ink)
-                }
-                Text(hum.subtitle)
-                    .font(.system(size: 14))
-                    .foregroundStyle(HumTheme.grayText)
+        VStack(alignment: .center, spacing: 0) {
+            if case .fresh = mode {
+                TextField("Name your hum", text: $name)
+                    .font(.system(size: 32, weight: .regular))
+                    .kerning(-0.48)
+                    .foregroundStyle(Color.white.opacity(0.9))
+                    .multilineTextAlignment(.center)
+                    .submitLabel(.done)
+                    .onSubmit {
+                        midiURL = try? MIDIExporter.export(hum: currentHum)
+                    }
+            } else {
+                Text(hum.name)
+                    .font(.system(size: 32, weight: .regular))
+                    .kerning(-0.48)
+                    .foregroundStyle(.white)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
             }
         }
+        .frame(maxWidth: .infinity, alignment: .center)
     }
 
     private var metaRow: some View {
-        HStack(spacing: 16) {
-            HStack(spacing: 0) {
-                Text("Key: ").foregroundStyle(HumTheme.grayText2)
-                Text(hum.key).fontWeight(.medium).foregroundStyle(.black)
-            }
-            HStack(spacing: 0) {
-                Text("BPM: ").foregroundStyle(HumTheme.grayText2)
-                Text("~\(hum.bpm)").fontWeight(.medium).foregroundStyle(.black)
-            }
-            Text(hum.timeSignature)
-                .fontWeight(.medium)
-                .foregroundStyle(.black)
+        HStack(spacing: 8) {
+            MetaChip(label: "KEY", value: hum.key)
+            MetaChip(label: "BPM", value: "~\(hum.bpm)")
+            MetaChip(label: "TIME", value: hum.timeSignature)
         }
-        .font(.system(size: 14))
+        .frame(maxWidth: .infinity, alignment: .center)
     }
+
+   
 
     // MARK: - Chords
 
     private var chordSection: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            HStack {
-                Text("CHORDS")
-                    .kerning(0.6)
-                Spacer()
-                Text("Set key")
-            }
-            .font(.system(size: 12))
-            .foregroundStyle(HumTheme.grayText)
-
+        VStack(alignment: .leading, spacing: 12) {
             LazyVGrid(
                 columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible())],
-                spacing: 12
-            ) {
+                spacing: 12            ) {
                 ForEach(Array(hum.chords.enumerated()), id: \.offset) { _, chord in
-                    ChordCard(symbol: chord)
+                    ChordCard(symbol: chord) {
+                        Haptics.selection()
+                        chordPlayer.play(chord: chord)
+                    }
                 }
             }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     // MARK: - Playback
 
     private var playbackCard: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 12) {
+        VStack(spacing: 16) {
+            HStack(spacing: 16) {
                 Button {
+                    Haptics.selection()
                     player.toggle()
                 } label: {
                     ZStack {
-                        Circle().fill(Color.black).frame(width: 32, height: 32)
+                        Circle()
+                            .fill(Color.black.opacity(player.isPlaying ? 0.28 : 0.18))
+                            .background(.ultraThinMaterial, in: Circle())
+                            .overlay(Circle().strokeBorder(Color.white.opacity(0.12), lineWidth: 1))
+                            .frame(width: 42, height: 42)
                         Image(systemName: player.isPlaying ? "pause.fill" : "play.fill")
-                            .font(.system(size: 12, weight: .bold))
-                            .foregroundStyle(.white)
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundStyle(Color.white.opacity(0.5))
                             .offset(x: player.isPlaying ? 0 : 1)
                     }
                 }
+                .buttonStyle(.plain)
                 .accessibilityLabel(player.isPlaying ? "Pause" : "Play")
 
-                Text("\(player.currentTime.clockString) / \(max(player.duration, hum.duration).clockString)")
-                    .font(.system(size: 12))
-                    .monospacedDigit()
-                    .foregroundStyle(HumTheme.grayText)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(recordedDateLabel)
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(Color.white.opacity(0.5))
+                        .lineLimit(1)
+
+                    Text("\(player.currentTime.clockString) / \(max(player.duration, hum.duration).clockString)")
+                        .font(.system(size: 11, weight: .medium))
+                        .monospacedDigit()
+                        .foregroundStyle(Color.white.opacity(0.34))
+                }
+
+                Spacer()
             }
 
             GeometryReader { proxy in
                 ZStack(alignment: .leading) {
-                    Capsule().fill(HumTheme.hairline)
+                    Capsule().fill(Color.white.opacity(0.1))
                     Capsule()
-                        .fill(HumTheme.ink)
+                        .fill(Color.white.opacity(0.86))
                         .frame(width: max(0, proxy.size.width * player.progress))
                 }
             }
-            .frame(height: 4)
+            .frame(height: 5)
         }
-        .padding(16)
-        .background(HumTheme.card, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .padding(18)
+        .resultCardChrome(isPressed: false)
+        .frame(maxWidth: .infinity)
     }
 
     // MARK: - Actions
 
     @ViewBuilder
     private var actions: some View {
-        VStack(spacing: 12) {
-            switch mode {
-            case .fresh(let onSave, let onRecordAgain, _):
-                Button("Record Again", action: onRecordAgain)
-                    .buttonStyle(OutlinePillButtonStyle())
-
+        switch mode {
+        case .fresh(let onSave, _, _):
+            actionBar {
                 exportButton
+                micPlaybackButton
 
                 Button {
-                    onSave(currentHum)
+                    let humToSave = currentHum
+                    Haptics.success()
+                    leaveResults {
+                        onSave(humToSave)
+                    }
                 } label: {
-                    Text("Save")
-                        .frame(maxWidth: .infinity)
+                    actionLabel(systemName: "checkmark", title: "Save")
                 }
-                .buttonStyle(FilledPillButtonStyle())
+                .buttonStyle(ResultActionButtonStyle())
+            }
 
-            case .saved(let onDelete, _):
+        case .saved(let onDelete, _):
+            actionBar {
                 exportButton
+                micPlaybackButton
 
-                Button(role: .destructive, action: onDelete) {
-                    Text("Delete Hum")
-                        .frame(maxWidth: .infinity)
+                Button(role: .destructive) {
+                    Haptics.warning()
+                    leaveResults(onDelete)
+                } label: {
+                    actionLabel(systemName: "trash", title: "Delete Hum")
                 }
-                .buttonStyle(OutlinePillButtonStyle(textColor: HumTheme.ink))
+                .buttonStyle(ResultActionButtonStyle())
             }
         }
+    }
+
+    @ViewBuilder
+    private func actionBar<Content: View>(@ViewBuilder content: () -> Content) -> some View {
+        HStack(spacing: 6) {
+            content()
+        }
+        .padding(6)
+        .frame(maxWidth: .infinity)
+        .background(Color.black.opacity(0.3), in: Capsule())
+        .background(.ultraThinMaterial, in: Capsule())
+        .overlay(Capsule().strokeBorder(Color.white.opacity(0.12), lineWidth: 1))
+    }
+
+    private var micPlaybackButton: some View {
+        Button {
+            Haptics.selection()
+            player.toggle()
+        } label: {
+            Image(systemName: player.isPlaying ? "pause.fill" : "mic.fill")
+                .font(.system(size: 20, weight: .semibold))
+                .foregroundStyle(Color.white.opacity(player.isPlaying ? 0.9 : 0.82))
+                .frame(maxWidth: .infinity)
+                .frame(height: 52)
+                .accessibilityLabel(player.isPlaying ? "Pause hum" : "Play hum")
+        }
+        .buttonStyle(ResultActionButtonStyle())
+    }
+
+    private func darkMaterialIcon(systemName: String, accessibilityLabel: String) -> some View {
+        Image(systemName: systemName)
+            .font(.system(size: 17, weight: .semibold))
+            .foregroundStyle(Color.white.opacity(0.86))
+            .frame(width: 44, height: 44)
+            .background(Color.black.opacity(0.3), in: Circle())
+            .background(.ultraThinMaterial, in: Circle())
+            .overlay(Circle().strokeBorder(Color.white.opacity(0.12), lineWidth: 1))
+            .contentShape(Circle())
+            .accessibilityLabel(accessibilityLabel)
+    }
+
+    private func actionLabel(systemName: String, title: String) -> some View {
+        Label(title, systemImage: systemName)
+            .labelStyle(.iconOnly)
+            .font(.system(size: 20, weight: .semibold))
+            .frame(maxWidth: .infinity)
+            .frame(height: 52)
+            .accessibilityLabel(title)
     }
 
     @ViewBuilder
     private var exportButton: some View {
         if let midiURL {
             ShareLink(item: midiURL) {
-                Text("Export MIDI")
-                    .frame(maxWidth: .infinity)
+                actionLabel(systemName: "square.and.arrow.up", title: "Export MIDI")
             }
-            .buttonStyle(OutlinePillButtonStyle())
+            .buttonStyle(ResultActionButtonStyle())
+            .simultaneousGesture(
+                TapGesture().onEnded {
+                    Haptics.light()
+                }
+            )
         } else {
-            Button("Export MIDI") {}
-                .buttonStyle(OutlinePillButtonStyle())
-                .disabled(true)
+            Button {} label: {
+                actionLabel(systemName: "square.and.arrow.up", title: "Export MIDI")
+            }
+            .buttonStyle(ResultActionButtonStyle())
+            .disabled(true)
         }
+    }
+
+    private var resultsGlow: some View {
+        VStack {
+            Spacer()
+            Circle()
+                .fill(Color.white.opacity(0.11))
+                .frame(width: 460, height: 460)
+                .blur(radius: 92)
+                .offset(y: 170)
+        }
+        .ignoresSafeArea()
+        .allowsHitTesting(false)
+    }
+
+    private func runTextEntrance() {
+        isLeaving = false
+        isTextVisible = false
+        withAnimation(HumMotion.textReveal) {
+            isTextVisible = true
+        }
+    }
+
+    private func leaveResults(_ completion: @escaping () -> Void) {
+        guard !isLeaving else { return }
+        isLeaving = true
+        player.stop()
+        chordPlayer.stop()
+        withAnimation(HumMotion.textExit) {
+            isTextVisible = false
+        }
+        Task {
+            try? await Task.sleep(for: HumMotion.textExitDelay)
+            await MainActor.run {
+                completion()
+            }
+        }
+    }
+}
+
+private struct ResultsScrollOffsetPreferenceKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = nextValue()
     }
 }
 
 // MARK: - Components
 
-/// One tile in the chord grid; minor chords carry the dark emphasis.
+private extension View {
+    func resultCardChrome(isPressed: Bool) -> some View {
+        background(
+            ZStack {
+                RoundedRectangle(cornerRadius: 24, style: .continuous)
+                    .fill(Color.white.opacity(isPressed ? 0.045 : 0.07))
+                RoundedRectangle(cornerRadius: 24, style: .continuous)
+                    .fill(Color.black.opacity(isPressed ? 0.24 : 0))
+            }
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                .strokeBorder(Color.white.opacity(isPressed ? 0.08 : 0.09), lineWidth: 1)
+        )
+    }
+}
+
 struct ChordCard: View {
     let symbol: String
+    let onTap: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(symbol)
-                .font(.system(size: 36, weight: .light))
-                .kerning(0.37)
-                .foregroundStyle(Hum.isMinorSymbol(symbol) ? HumTheme.ink : HumTheme.dimmed)
+        Button(action: onTap) {
+            VStack(alignment: .leading, spacing: 8) {
+                Text(symbol)
+                    .font(.system(size: 36, weight: .light))
+                    .kerning(0.37)
+                    .foregroundStyle(.white)
 
-            HStack(spacing: 4) {
-                ForEach(Array(["↓", "↑", "↓", "↑"].enumerated()), id: \.offset) { _, arrow in
-                    Text(arrow)
+                HStack(spacing: 4) {
+                    ForEach(Array(["↓", "↑", "↓", "↑"].enumerated()), id: \.offset) { _, arrow in
+                        Text(arrow)
+                    }
                 }
+                .font(.system(size: 12))
+                .foregroundStyle(Color.white.opacity(0.36))
             }
-            .font(.system(size: 12))
-            .foregroundStyle(HumTheme.dimmed)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(24)
+            .frame(height: 112)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(24)
-        .frame(height: 112)
-        .background(HumTheme.card, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .buttonStyle(ChordCardButtonStyle())
+    }
+}
+
+struct ChordCardButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .resultCardChrome(isPressed: configuration.isPressed)
+            .scaleEffect(configuration.isPressed ? 0.965 : 1)
+            .shadow(color: .black.opacity(configuration.isPressed ? 0.28 : 0.08), radius: configuration.isPressed ? 14 : 4, y: configuration.isPressed ? 10 : 2)
+            .animation(.spring(response: 0.24, dampingFraction: 0.74), value: configuration.isPressed)
+    }
+}
+
+struct ResultActionButtonStyle: ButtonStyle {
+    var isPrimary = false
+    @Environment(\.isEnabled) private var isEnabled
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .foregroundStyle(Color.white.opacity(isEnabled ? 0.9 : 0.3))
+            .background(
+                Capsule()
+                    .fill(Color.white.opacity(backgroundOpacity(isPressed: configuration.isPressed)))
+            )
+            .contentShape(Capsule())
+            .scaleEffect(configuration.isPressed ? 0.96 : 1)
+            .animation(.spring(response: 0.24, dampingFraction: 0.76), value: configuration.isPressed)
+    }
+
+    private func backgroundOpacity(isPressed: Bool) -> Double {
+        if isPressed { return isPrimary ? 0.2 : 0.1 }
+        return isPrimary ? 0.14 : 0
     }
 }
 
 struct OutlinePillButtonStyle: ButtonStyle {
-    var textColor: Color = .black
+    var textColor: Color = .white
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
@@ -297,10 +509,10 @@ struct OutlinePillButtonStyle: ButtonStyle {
             .frame(height: 58)
             .background(
                 Capsule()
-                    .fill(Color.white)
-                    .overlay(Capsule().strokeBorder(HumTheme.hairline, lineWidth: 1))
+                    .fill(Color.white.opacity(configuration.isPressed ? 0.12 : 0.06))
+                    .overlay(Capsule().strokeBorder(Color.white.opacity(0.16), lineWidth: 1))
             )
-            .opacity(configuration.isPressed ? 0.6 : 1)
+            .scaleEffect(configuration.isPressed ? 0.985 : 1)
     }
 }
 
@@ -308,11 +520,31 @@ struct FilledPillButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .font(.system(size: 16, weight: .medium))
-            .foregroundStyle(.white)
+            .foregroundStyle(HumTheme.ink)
             .frame(maxWidth: .infinity)
             .frame(height: 56)
-            .background(Capsule().fill(Color.black))
-            .opacity(configuration.isPressed ? 0.75 : 1)
+            .background(Capsule().fill(Color.white.opacity(configuration.isPressed ? 0.72 : 0.94)))
+            .scaleEffect(configuration.isPressed ? 0.985 : 1)
+    }
+}
+
+private struct MetaChip: View {
+    let label: String
+    let value: String
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Text(label)
+                .font(.system(size: 10, weight: .semibold))
+                .foregroundStyle(Color.white.opacity(0.34))
+            Text(value)
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(Color.white.opacity(0.82))
+        }
+        .padding(.horizontal, 12)
+        .frame(height: 34)
+        .background(Color.white.opacity(0.005), in: Capsule())
+        .overlay(Capsule().strokeBorder(Color.white.opacity(0.1), lineWidth: 1))
     }
 }
 
@@ -320,7 +552,7 @@ struct FilledPillButtonStyle: ButtonStyle {
     ResultsView(
         hum: Hum(
             id: UUID(),
-            name: "Ideia pro refrão",
+            name: "Hook Idea",
             createdAt: .now,
             duration: 15,
             key: "Am",

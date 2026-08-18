@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 /// Design tokens pulled from the Humming Figma brand guidelines.
 /// The app is fully greyscale by design — light arrives only as light.
@@ -28,18 +29,99 @@ enum HumTheme {
         endPoint: .bottomTrailing
     )
 
+    /// First name extracted from the device name ("Andrea's iPhone" → "Andrea").
+    static var firstName: String {
+        let name = UIDevice.current.name
+        for delimiter in ["'s ", "'s", "\u{2019}s ", "\u{2019}s"] {
+            if let range = name.range(of: delimiter) {
+                let candidate = String(name[..<range.lowerBound])
+                let lower = candidate.lowercased()
+                if !candidate.isEmpty, lower != "iphone", lower != "ipad", lower != "mac" {
+                    return candidate
+                }
+            }
+        }
+        return ""
+    }
+
     /// Rotating greetings from the brand "UI COMMS" guidelines.
-    static let greetings: [(top: String, bottom: String)] = [
-        ("Hey!", "What's in your head?"),
+    private static let greetings: [(top: String, bottom: String)] = [
+        ("Hey!", "What\u{2019}s in your head?"),
         ("Hey!", "Back for another hit?"),
         ("Welcome back my friend,", "today is jamming seshhhh"),
-        ("Haven't seen you in a while.", "Feeling creative today?")
+        ("Haven\u{2019}t seen you in a while.", "Feeling creative today?")
     ]
 
     static func greetingOfTheDay(humCount: Int) -> (top: String, bottom: String) {
-        guard humCount > 0 else { return greetings[0] }
+        let name = firstName
+        let salutation = name.isEmpty ? "Hey!" : "Hey, \(name)!"
+        guard humCount > 0 else {
+            return (salutation, "What\u{2019}s in your head?")
+        }
         let day = Calendar.current.ordinality(of: .day, in: .year, for: .now) ?? 0
-        return greetings[day % greetings.count]
+        var (top, bottom) = greetings[day % greetings.count]
+        if top == "Hey!" { top = salutation }
+        return (top, bottom)
+    }
+}
+
+enum HumMotion {
+    static let headlineEntrance = Animation.easeOut(duration: 0.78).delay(0.08)
+    static let headlineExit = Animation.easeInOut(duration: 0.72)
+    static let libraryExit = Animation.easeInOut(duration: 0.5)
+    static let bottomHintExit = Animation.easeInOut(duration: 0.58)
+
+    static let buttonBreathing = Animation.easeInOut(duration: 2.05)
+    static let buttonPress = Animation.spring(response: 0.5, dampingFraction: 0.48)
+    static let buttonRelease = Animation.spring(response: 0.86, dampingFraction: 0.36, blendDuration: 0.12)
+    static let buttonDescend = Animation.spring(response: 0.58, dampingFraction: 0.82)
+
+    static let phaseChange = Animation.spring(response: 0.74, dampingFraction: 0.84)
+    static let recordingTextIn = Animation.easeOut(duration: 0.58).delay(0.18)
+    static let stopHintIn = Animation.easeOut(duration: 0.72).delay(0.12)
+    static let textReveal = Animation.easeOut(duration: 0.62)
+    static let textExit = Animation.easeInOut(duration: 0.28)
+    static let librarySlide = Animation.spring(response: 0.68, dampingFraction: 0.9)
+
+    static let startDelay: Duration = .milliseconds(580)
+    static let textExitDelay: Duration = .milliseconds(220)
+}
+
+extension View {
+    func premiumTextReveal(_ isVisible: Bool, yOffset: CGFloat = 14, blur: CGFloat = 8) -> some View {
+        modifier(PremiumTextRevealModifier(isVisible: isVisible, yOffset: yOffset, blur: blur))
+    }
+
+    @ViewBuilder
+    func humMatchedTransitionSource<ID: Hashable>(id: ID, in namespace: Namespace.ID) -> some View {
+        if #available(iOS 18.0, *) {
+            matchedTransitionSource(id: id, in: namespace)
+        } else {
+            self
+        }
+    }
+
+    @ViewBuilder
+    func humNavigationZoomDestination<ID: Hashable>(sourceID: ID, in namespace: Namespace.ID) -> some View {
+        if #available(iOS 18.0, *) {
+            navigationTransition(.zoom(sourceID: sourceID, in: namespace))
+        } else {
+            self
+        }
+    }
+}
+
+private struct PremiumTextRevealModifier: ViewModifier {
+    let isVisible: Bool
+    let yOffset: CGFloat
+    let blur: CGFloat
+
+    func body(content: Content) -> some View {
+        content
+            .opacity(isVisible ? 1 : 0)
+            .offset(y: isVisible ? 0 : yOffset)
+            .blur(radius: isVisible ? 0 : blur)
+            .animation(isVisible ? HumMotion.textReveal : HumMotion.textExit, value: isVisible)
     }
 }
 

@@ -27,9 +27,10 @@ struct Hum: Identifiable, Codable, Equatable, Hashable {
     /// File name of the recording inside the store's audio directory
     /// (or a temporary file name before the hum is saved).
     var audioFileName: String
+    var emojiReaction: String? = nil
 
     var subtitle: String {
-        "\(createdAt.relativeLabel) · \(duration.compactDuration) · \(key)"
+        "\(createdAt.relativeLabel) · \(duration.compactDuration)"
     }
 }
 
