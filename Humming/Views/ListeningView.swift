@@ -3,6 +3,7 @@ import SwiftUI
 /// Recording screen (Figma flow 3, screen 4): timer, stop affordance, and the PR 1 halo.
 struct ListeningView: View {
     @ObservedObject var recorder: AudioRecorder
+    var isFinishing = false
     var onStop: () -> Void
 
     @State private var introBloom = false
@@ -29,20 +30,22 @@ struct ListeningView: View {
                     .foregroundStyle(Color.white.opacity(0.26))
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
                     .padding(.top, 32)
-                    .opacity(timerVisible ? 1 : 0)
-                    .offset(y: timerVisible ? 0 : -18)
-                    .blur(radius: timerVisible ? 0 : 5)
+                    .opacity(textVisible ? 1 : 0)
+                    .offset(y: textVisible ? 0 : -18)
+                    .blur(radius: textVisible ? 0 : 5)
                     .animation(HumMotion.recordingTextIn, value: timerVisible)
+                    .animation(HumMotion.textExit, value: isFinishing)
 
                 Text(recordingTimeString)
                     .font(.system(size: 24, weight: .light).monospacedDigit())
                     .foregroundStyle(Color.white.opacity(0.36))
                     .contentTransition(.opacity)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
-                    .opacity(timerVisible ? 1 : 0)
-                    .offset(y: timerVisible ? 0 : -18)
-                    .blur(radius: timerVisible ? 0 : 5)
+                    .opacity(textVisible ? 1 : 0)
+                    .offset(y: textVisible ? 0 : -18)
+                    .blur(radius: textVisible ? 0 : 5)
                     .animation(HumMotion.recordingTextIn, value: timerVisible)
+                    .animation(HumMotion.textExit, value: isFinishing)
 
                 VStack(spacing: 0) {
                     Spacer()
@@ -52,10 +55,11 @@ struct ListeningView: View {
                         .kerning(-0.12)
                         .foregroundStyle(Color.black.opacity(0.4))
                         .padding(.bottom, 32)
-                        .opacity(timerVisible ? 1 : 0)
-                        .offset(y: timerVisible ? 0 : 42)
-                        .blur(radius: timerVisible ? 0 : 5)
+                        .opacity(textVisible ? 1 : 0)
+                        .offset(y: textVisible ? 0 : 42)
+                        .blur(radius: textVisible ? 0 : 5)
                         .animation(HumMotion.stopHintIn, value: timerVisible)
+                        .animation(HumMotion.textExit, value: isFinishing)
                 }
             }
         }
@@ -84,6 +88,10 @@ struct ListeningView: View {
 
     private var recordingTimeString: String {
         recorder.elapsed.clockString
+    }
+
+    private var textVisible: Bool {
+        timerVisible && !isFinishing
     }
 
 

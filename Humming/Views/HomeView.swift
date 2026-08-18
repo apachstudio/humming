@@ -35,12 +35,13 @@ struct HomeView: View {
                 case .recording:
                     ListeningView(
                         recorder: recorder,
+                        isFinishing: isFinishingRecording,
                         onStop: finishRecording
                     )
                     .transition(.identity)
                 case .processing:
                     ProcessingView()
-                        .transition(.premiumProcessingExit)
+                        .transition(.identity)
                 case .results(let hum):
                     if let audioURL = freshAudioURL {
                         ResultsView(
@@ -96,12 +97,7 @@ struct HomeView: View {
             VStack(spacing: 0) {
                 HStack {
                     Spacer()
-                    LiquidGlassNavIconButton(
-                        systemName: "music.note.list",
-                        accessibilityLabel: "Your hums",
-                        tone: .dark,
-                        action: presentLibrary
-                    )
+                    libraryNavButton
                 }
                 .padding(.horizontal, 24)
                 .padding(.top, 12)
@@ -142,6 +138,31 @@ struct HomeView: View {
         }
         .onAppear(perform: runHeadlineEntrance)
         .task { await runRecordButtonBreathing() }
+    }
+
+    private var libraryNavButton: some View {
+        Button {
+            presentLibrary()
+        } label: {
+            let label = Image("library-icon")
+                .renderingMode(.template)
+                .resizable()
+                .scaledToFit()
+                .foregroundStyle(Color.white.opacity(0.86))
+                .frame(width: 19, height: 19)
+                .frame(width: 44, height: 44)
+                .contentShape(Circle())
+                .accessibilityLabel("Your hums")
+
+            if #available(iOS 26.0, *) {
+                label.glassEffect(.regular.interactive(), in: Circle())
+            } else {
+                label
+                    .background(.ultraThinMaterial, in: Circle())
+                    .overlay(Circle().strokeBorder(Color.white.opacity(0.12), lineWidth: 1))
+            }
+        }
+        .buttonStyle(.plain)
     }
 
     /// Playful greeting from the brand UI COMMS guidelines.
@@ -364,8 +385,13 @@ struct HomeView: View {
             return
         }
         freshAudioURL = result.url
-        withAnimation(HumMotion.phaseChange) {
-            phase = .processing
+        Task {
+            try? await Task.sleep(for: .milliseconds(180))
+            await MainActor.run {
+                withAnimation(.easeInOut(duration: 0.28)) {
+                    phase = .processing
+                }
+            }
         }
 
         Task.detached(priority: .userInitiated) {

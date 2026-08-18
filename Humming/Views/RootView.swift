@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct RootView: View {
-    @AppStorage("hasOnboarded") private var hasOnboarded = false
+    @State private var hasOnboarded = false
     @StateObject private var store = HumStore()
 
     var body: some View {

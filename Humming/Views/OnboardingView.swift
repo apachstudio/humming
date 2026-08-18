@@ -64,8 +64,8 @@ struct OnboardingView: View {
                 .offset(y: humOffset)
 
             Text("Play it")
-                .font(.system(size: 32, weight: .semibold))
-                .foregroundStyle(Color(hex: 0xEFEFEF))
+                .font(.system(size: 28, weight: .medium))
+                .foregroundStyle(Color(hex: 0x919191))
                 .opacity(playOpacity)
                 .offset(y: playOffset)
         }

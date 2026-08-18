@@ -24,7 +24,7 @@ struct ResultsView: View {
     @State private var isTextVisible = false
     @State private var isLeaving = false
     @State private var isReactionStripVisible = false
-    @State private var isReactionPickerPresented = false
+    @State private var isReactionMenuExpanded = false
     @State private var scrollContentOffset: CGFloat = 0
 
     private let contentInset: CGFloat = 24
@@ -95,13 +95,37 @@ struct ResultsView: View {
                         .frame(width: contentWidth, height: 80)
                         .offset(x: contentX)
                 }
-                .blur(radius: isReactionPickerPresented ? 8 : 0)
-                .animation(.easeInOut(duration: 0.22), value: isReactionPickerPresented)
+                .blur(radius: isReactionStripVisible ? 8 : 0)
+                .animation(.easeInOut(duration: 0.22), value: isReactionStripVisible)
 
-                if isReactionPickerPresented {
-                    reactionPickerOverlay
-                        .transition(.opacity.combined(with: .scale(scale: 0.98)))
-                        .zIndex(3)
+                if isReactionStripVisible {
+                    reactionDimmingLayer
+                        .transition(.opacity)
+                        .zIndex(1)
+
+                    VStack {
+                        HStack {
+                            Spacer()
+                            HStack(spacing: 8) {
+                                quickReactionStrip
+                                    .frame(width: isReactionMenuExpanded ? min(contentWidth - 52, 420) : 272, alignment: .trailing)
+
+                                Button {
+                                    dismissReactionMenu()
+                                } label: {
+                                    reactionIconLabel
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+                        .padding(.top, 18)
+                        .padding(.trailing, proxy.safeAreaInsets.trailing + contentInset)
+
+                        Spacer()
+                    }
+                    .frame(width: proxy.size.width, height: proxy.size.height)
+                    .transition(.opacity.combined(with: .move(edge: .trailing)))
+                    .zIndex(2)
                 }
             }
         }
@@ -134,7 +158,11 @@ struct ResultsView: View {
             }
             .map { $0.reaction }
 
-        return Array((ranked + Self.fallbackReactions).uniqued().prefix(4))
+        return Array((ranked + Self.fallbackReactions).uniqued().prefix(5))
+    }
+
+    private var reactionOptions: [String] {
+        isReactionMenuExpanded ? (topReactions + Self.fallbackReactions).uniqued() : topReactions
     }
 
     private var recordedDateLabel: String {
@@ -166,14 +194,6 @@ struct ResultsView: View {
             Spacer()
 
             reactionButton
-        }
-        .overlay(alignment: .topTrailing) {
-            if isReactionStripVisible {
-                quickReactionStrip
-                    .padding(.top, 54)
-                    .transition(.opacity.combined(with: .move(edge: .top)))
-                    .zIndex(2)
-            }
         }
     }
 
@@ -337,7 +357,7 @@ struct ResultsView: View {
     private var reactionButton: some View {
         Button {
             Haptics.light()
-            presentReactionPicker()
+            presentReactionMenu()
         } label: {
             reactionIconLabel
         }
@@ -345,9 +365,7 @@ struct ResultsView: View {
         .simultaneousGesture(
             LongPressGesture(minimumDuration: 0.35).onEnded { _ in
                 Haptics.selection()
-                withAnimation(.spring(response: 0.28, dampingFraction: 0.82)) {
-                    isReactionStripVisible.toggle()
-                }
+                presentReactionMenu()
             }
         )
     }
@@ -374,116 +392,66 @@ struct ResultsView: View {
     }
 
     private var quickReactionStrip: some View {
-        HStack(spacing: 8) {
-            ForEach(topReactions, id: \.self) { reaction in
-                Button {
-                    selectReaction(reaction)
-                } label: {
-                    Text(reaction)
-                        .font(.system(size: 20))
-                        .frame(width: 36, height: 36)
-                        .background(
-                            Circle().fill(reaction == selectedReaction ? Color.white.opacity(0.18) : Color.white.opacity(0.08))
-                        )
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                ForEach(reactionOptions, id: \.self) { reaction in
+                    Button {
+                        selectReaction(reaction == selectedReaction ? nil : reaction)
+                    } label: {
+                        Text(reaction)
+                            .font(.system(size: 20))
+                            .frame(width: 36, height: 36)
+                            .background(
+                                Circle().fill(reaction == selectedReaction ? Color.white.opacity(0.18) : Color.white.opacity(0.08))
+                            )
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("React with \(reaction)")
                 }
-                .buttonStyle(.plain)
-                .accessibilityLabel("React with \(reaction)")
-            }
 
-            Button {
-                presentReactionPicker()
-            } label: {
-                Image(systemName: "plus")
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(Color.white.opacity(0.86))
-                    .frame(width: 36, height: 36)
-                    .background(Circle().fill(Color.white.opacity(0.08)))
+                if !isReactionMenuExpanded {
+                    Button {
+                        Haptics.light()
+                        withAnimation(.spring(response: 0.28, dampingFraction: 0.82)) {
+                            isReactionMenuExpanded = true
+                        }
+                    } label: {
+                        Image(systemName: "plus")
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundStyle(Color.white.opacity(0.86))
+                            .frame(width: 36, height: 36)
+                            .background(Circle().fill(Color.white.opacity(0.08)))
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("More reactions")
+                } else if selectedReaction != nil {
+                    Button {
+                        selectReaction(nil)
+                    } label: {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundStyle(Color.white.opacity(0.72))
+                            .frame(width: 36, height: 36)
+                            .background(Circle().fill(Color.white.opacity(0.08)))
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Remove reaction")
+                }
             }
-            .buttonStyle(.plain)
-            .accessibilityLabel("More reactions")
+            .padding(8)
         }
-        .padding(8)
         .background(Color.black.opacity(0.3), in: Capsule())
         .background(.ultraThinMaterial, in: Capsule())
         .overlay(Capsule().strokeBorder(Color.white.opacity(0.12), lineWidth: 1))
         .shadow(color: .black.opacity(0.24), radius: 18, y: 10)
     }
 
-    private var reactionPickerOverlay: some View {
-        ZStack {
-            Color.black.opacity(0.38)
-                .background(.ultraThinMaterial)
-                .ignoresSafeArea()
-                .onTapGesture {
-                    dismissReactionPicker()
-                }
-
-            VStack(alignment: .leading, spacing: 20) {
-                HStack {
-                    Text("Reaction")
-                        .font(.system(size: 18, weight: .semibold))
-                        .foregroundStyle(Color.white.opacity(0.9))
-
-                    Spacer()
-
-                    Button {
-                        dismissReactionPicker()
-                    } label: {
-                        Image(systemName: "xmark")
-                            .font(.system(size: 14, weight: .semibold))
-                            .foregroundStyle(Color.white.opacity(0.78))
-                            .frame(width: 34, height: 34)
-                            .background(Color.white.opacity(0.08), in: Circle())
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("Close reactions")
-                }
-
-                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 10), count: 4), spacing: 10) {
-                    ForEach(Self.fallbackReactions, id: \.self) { reaction in
-                        Button {
-                            selectReaction(reaction)
-                        } label: {
-                            Text(reaction)
-                                .font(.system(size: 28))
-                                .frame(maxWidth: .infinity)
-                                .frame(height: 52)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 16, style: .continuous)
-                                        .fill(reaction == selectedReaction ? Color.white.opacity(0.16) : Color.white.opacity(0.07))
-                                )
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 16, style: .continuous)
-                                        .strokeBorder(Color.white.opacity(reaction == selectedReaction ? 0.18 : 0.08), lineWidth: 1)
-                                )
-                        }
-                        .buttonStyle(.plain)
-                        .accessibilityLabel("React with \(reaction)")
-                    }
-                }
-
-                if selectedReaction != nil {
-                    Button("Remove reaction") {
-                        selectReaction(nil)
-                    }
-                    .font(.system(size: 14, weight: .medium))
-                    .foregroundStyle(Color.white.opacity(0.5))
-                    .frame(maxWidth: .infinity)
-                    .buttonStyle(.plain)
-                }
-            }
-            .padding(22)
-            .frame(maxWidth: 320)
-            .background(Color.black.opacity(0.34), in: RoundedRectangle(cornerRadius: 28, style: .continuous))
-            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 28, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: 28, style: .continuous)
-                    .strokeBorder(Color.white.opacity(0.12), lineWidth: 1)
-            )
-            .shadow(color: .black.opacity(0.3), radius: 28, y: 18)
-            .padding(.horizontal, 24)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    private var reactionDimmingLayer: some View {
+        Color.black.opacity(0.28)
+            .background(.ultraThinMaterial)
+            .ignoresSafeArea()
+            .contentShape(Rectangle())
+            .onTapGesture(perform: dismissReactionMenu)
     }
 
     @ViewBuilder
@@ -529,16 +497,17 @@ struct ResultsView: View {
         .buttonStyle(.plain)
     }
 
-    private func presentReactionPicker() {
+    private func presentReactionMenu() {
         withAnimation(.spring(response: 0.3, dampingFraction: 0.86)) {
-            isReactionStripVisible = false
-            isReactionPickerPresented = true
+            isReactionStripVisible = true
+            isReactionMenuExpanded = false
         }
     }
 
-    private func dismissReactionPicker() {
+    private func dismissReactionMenu() {
         withAnimation(.easeInOut(duration: 0.2)) {
-            isReactionPickerPresented = false
+            isReactionStripVisible = false
+            isReactionMenuExpanded = false
         }
     }
 
@@ -549,7 +518,7 @@ struct ResultsView: View {
         }
         withAnimation(.easeInOut(duration: 0.18)) {
             isReactionStripVisible = false
-            isReactionPickerPresented = false
+            isReactionMenuExpanded = false
         }
     }
 

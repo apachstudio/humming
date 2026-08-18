@@ -3,6 +3,7 @@ import SwiftUI
 /// Post-recording loading state that visually continues the ListeningView halo.
 struct ProcessingView: View {
     @State private var introBloom = false
+    @State private var processingTextVisible = false
 
     var body: some View {
         GeometryReader { proxy in
@@ -16,20 +17,26 @@ struct ProcessingView: View {
                     screenSize: proxy.size
                 )
 
-                Text("Processing your hum")
+                Text("Processing hum...")
                     .font(.system(size: 14, weight: .medium))
-                    .foregroundStyle(Color.white.opacity(0.42))
+                    .foregroundStyle(Color.white.opacity(0.36))
                     .multilineTextAlignment(.center)
-                    .frame(maxWidth: .infinity)
-                    .opacity(introBloom ? 1 : 0)
-                    .offset(y: introBloom ? 0 : 8)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+                    .opacity(processingTextVisible ? 1 : 0)
+                    .offset(y: processingTextVisible ? 0 : 18)
+                    .blur(radius: processingTextVisible ? 0 : 5)
+                    .animation(HumMotion.recordingTextIn, value: processingTextVisible)
             }
         }
         .preferredColorScheme(.dark)
         .onAppear {
             introBloom = false
+            processingTextVisible = false
             withAnimation(.spring(response: 1.05, dampingFraction: 0.84)) {
                 introBloom = true
+            }
+            withAnimation(HumMotion.recordingTextIn) {
+                processingTextVisible = true
             }
         }
     }
@@ -42,14 +49,16 @@ struct ProcessingView: View {
         ZStack {
             TimelineView(.animation) { timeline in
                 let time = timeline.date.timeIntervalSinceReferenceDate
-                let pulse = 1 + sin(time * 1.45) * 0.075
-                let driftX = cos(time * 0.68) * bloomSize * 0.018
-                let driftY = sin(time * 0.84) * bloomSize * 0.012
+                let liveLevel = 0.08
+                let pulse = 1 + sin(time * 1.8) * 0.08 + liveLevel * 0.08
+                let drift = bloomSize * 0.035 * 0.55
+                let driftX = cos(time * 0.72) * drift
+                let driftY = sin(time * 0.9) * drift * 0.7
 
                 Circle()
-                    .fill(Color.white.opacity(0.38))
+                    .fill(Color.white.opacity(0.38 * 1.06))
                     .frame(width: bloomSize * 1.28, height: bloomSize * 1.28)
-                    .blur(radius: bloomSize * 0.2)
+                    .blur(radius: bloomSize * (0.16 + 0.055))
                     .scaleEffect(pulse)
                     .offset(x: driftX, y: driftY)
                     .blendMode(.plusLighter)
@@ -57,23 +66,26 @@ struct ProcessingView: View {
 
             TimelineView(.animation) { timeline in
                 let time = timeline.date.timeIntervalSinceReferenceDate
+                let liveLevel = 0.08
 
                 ZStack {
                     ForEach(0..<4, id: \.self) { index in
                         let ring = CGFloat(index)
-                        let diameter = bloomSize * (0.62 + ring * 0.11)
-                        let amplitude = bloomSize * (0.018 + Double(ring) * 0.004)
-                        let phase = CGFloat(time) * (0.82 + ring * 0.16) + ring * 1.7
+                        let drift = CGFloat(time * 2.16) * (1.5 + ring * 0.28)
+                        let diameter = bloomSize * (0.62 + ring * 0.105 + liveLevel * 0.045)
+                        let amplitude = bloomSize * (0.003 + 0.11 * 0.035 + liveLevel * 0.024) * (1 + Double(ring) * 0.24)
+                        let opacity = 0.29 - Double(ring) * 0.032 + liveLevel * 0.13
 
                         ProcessingHaloWave(
-                            phase: phase,
+                            phase: drift + ring * 1.7,
                             amplitude: amplitude,
                             frequency: 5 + ring * 2
                         )
-                        .stroke(Color.white.opacity(0.19 - Double(ring) * 0.035), lineWidth: max(1, bloomSize * 0.0038))
+                        .stroke(Color.white.opacity(max(0.02, opacity)), lineWidth: max(1, bloomSize * 0.0038))
                         .frame(width: diameter, height: diameter)
                         .blur(radius: bloomSize * (0.004 + ring * 0.002))
-                        .rotationEffect(.degrees(Double(ring) * 18 + time * (2 + Double(index))))
+                        .scaleEffect(1 + liveLevel * (0.035 + ring * 0.012))
+                        .rotationEffect(.degrees(Double(ring) * 18 + time * (3 + Double(index)) * 2.16))
                     }
                 }
                 .blendMode(.plusLighter)
@@ -82,15 +94,16 @@ struct ProcessingView: View {
 
             TimelineView(.animation) { timeline in
                 let time = timeline.date.timeIntervalSinceReferenceDate
-                let corePulse = 1 + sin(time * 1.9) * 0.035
+                let liveLevel = 0.08
+                let corePulse = 1 + sin(time * 2.25) * 0.028 + liveLevel * 0.035
 
                 Circle()
                     .fill(
                         RadialGradient(
                             stops: [
-                                .init(color: Color.white.opacity(0.9), location: 0),
-                                .init(color: Color.white.opacity(0.48), location: 0.28),
-                                .init(color: Color.white.opacity(0.14), location: 0.62),
+                                .init(color: Color.white.opacity(0.95 * 1.06), location: 0),
+                                .init(color: Color.white.opacity(0.54 * 1.06), location: 0.28),
+                                .init(color: Color.white.opacity(0.16 * 1.06), location: 0.62),
                                 .init(color: .clear, location: 1)
                             ],
                             center: .center,
@@ -103,7 +116,7 @@ struct ProcessingView: View {
                     .scaleEffect(corePulse)
             }
         }
-        .opacity(introBloom ? 0.86 : 0.28)
+        .opacity(0.92 * (introBloom ? 1 : 0.32))
         .scaleEffect(introBloom ? 1 : 0.28)
         .position(
             x: screenSize.width / 2,
