@@ -15,21 +15,27 @@ struct ResultsView: View {
     let audioURL: URL
     let mode: Mode
 
+    @EnvironmentObject private var store: HumStore
     @StateObject private var player = PlayerModel()
     @StateObject private var chordPlayer = ChordPreviewPlayer()
     @State private var name: String
+    @State private var selectedReaction: String?
     @State private var midiURL: URL?
     @State private var isTextVisible = false
     @State private var isLeaving = false
+    @State private var isReactionStripVisible = false
+    @State private var isReactionPickerPresented = false
     @State private var scrollContentOffset: CGFloat = 0
 
     private let contentInset: CGFloat = 24
+    private static let fallbackReactions = ["❤️", "🔥", "✨", "😭", "😍", "🫶", "🎵", "💡", "🚀", "🌙", "👏", "😌"]
 
     init(hum: Hum, audioURL: URL, mode: Mode) {
         self.hum = hum
         self.audioURL = audioURL
         self.mode = mode
         _name = State(initialValue: hum.name)
+        _selectedReaction = State(initialValue: hum.emojiReaction)
     }
 
     var body: some View {
@@ -44,57 +50,59 @@ struct ResultsView: View {
             )
 
             ZStack(alignment: .topLeading) {
-                HumTheme.charcoal.ignoresSafeArea()
-                resultsGlow
+                Group {
+                    HumTheme.charcoal.ignoresSafeArea()
+                    resultsGlow
 
-                VStack(spacing: 0) {
-                    ScrollView(showsIndicators: false) {
-                        VStack(alignment: .leading, spacing: 12) {
-                            metaRow
-                                .premiumTextReveal(isTextVisible, yOffset: 16, blur: 9)
-                            chordSection
-                                .padding(.top, 24)
-                                .premiumTextReveal(isTextVisible, yOffset: 20, blur: 10)
-                            playbackCard
-                                .padding(.top, 24)
-                                .premiumTextReveal(isTextVisible, yOffset: 22, blur: 10)
-                        }
-                        .frame(width: contentWidth, alignment: .leading)
-                        .padding(.top, 72)
-                        .padding(.bottom, 128)
-                        .background(
-                            GeometryReader { scrollProxy in
-                                Color.clear.preference(
-                                    key: ResultsScrollOffsetPreferenceKey.self,
-                                    value: scrollProxy.frame(in: .named("resultsScroll")).minY
-                                )
+                    VStack(spacing: 0) {
+                        ScrollView(showsIndicators: false) {
+                            VStack(alignment: .leading, spacing: 24) {
+                                title
+                                    .premiumTextReveal(isTextVisible, yOffset: 16, blur: 8)
+                                metaRow
+                                    .premiumTextReveal(isTextVisible, yOffset: 16, blur: 9)
+                                chordSection
+                                    .premiumTextReveal(isTextVisible, yOffset: 20, blur: 10)
+                                playbackCard
+                                    .premiumTextReveal(isTextVisible, yOffset: 22, blur: 10)
+                                actions
+                                    .premiumTextReveal(isTextVisible, yOffset: 22, blur: 10)
                             }
-                        )
+                            .frame(width: contentWidth, alignment: .leading)
+                            .padding(.top, 94)
+                            .padding(.bottom, 40)
+                            .background(
+                                GeometryReader { scrollProxy in
+                                    Color.clear.preference(
+                                        key: ResultsScrollOffsetPreferenceKey.self,
+                                        value: scrollProxy.frame(in: .named("resultsScroll")).minY
+                                    )
+                                }
+                            )
+                            .clipped()
+                            .frame(maxWidth: .infinity)
+                        }
+                        .coordinateSpace(name: "resultsScroll")
+                        .onPreferenceChange(ResultsScrollOffsetPreferenceKey.self) { value in
+                            scrollContentOffset = value
+                        }
                         .clipped()
-                        .frame(maxWidth: .infinity)
                     }
-                    .coordinateSpace(name: "resultsScroll")
-                    .onPreferenceChange(ResultsScrollOffsetPreferenceKey.self) { value in
-                        scrollContentOffset = value
-                    }
-                    .clipped()
-                }
-                .frame(width: contentWidth, height: proxy.size.height)
-                .offset(x: contentX)
-
-                header
-                    .frame(width: contentWidth, height: 52)
+                    .frame(width: contentWidth, height: proxy.size.height)
                     .offset(x: contentX)
 
-                VStack {
-                    Spacer()
-                    actions
-                        .frame(width: min(contentWidth, 220))
-                        .premiumTextReveal(isTextVisible, yOffset: 18, blur: 8)
-                        .padding(.bottom, max(proxy.safeAreaInsets.bottom, 12))
+                    header
+                        .frame(width: contentWidth, height: 80)
+                        .offset(x: contentX)
                 }
-                .frame(width: contentWidth, height: proxy.size.height)
-                .offset(x: contentX)
+                .blur(radius: isReactionPickerPresented ? 8 : 0)
+                .animation(.easeInOut(duration: 0.22), value: isReactionPickerPresented)
+
+                if isReactionPickerPresented {
+                    reactionPickerOverlay
+                        .transition(.opacity.combined(with: .scale(scale: 0.98)))
+                        .zIndex(3)
+                }
             }
         }
         .preferredColorScheme(.dark)
@@ -113,19 +121,31 @@ struct ResultsView: View {
         var hum = hum
         let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
         if !trimmed.isEmpty { hum.name = trimmed }
+        hum.emojiReaction = selectedReaction
         return hum
     }
 
-    private var compactTitle: String {
-        currentHum.name
-    }
+    private var topReactions: [String] {
+        let ranked = Dictionary(grouping: store.hums.compactMap(\.emojiReaction), by: { $0 })
+            .map { reaction, uses in (reaction: reaction, count: uses.count) }
+            .sorted {
+                if $0.count == $1.count { return $0.reaction < $1.reaction }
+                return $0.count > $1.count
+            }
+            .map { $0.reaction }
 
-    private var compactTitleProgress: Double {
-        min(max(Double((-scrollContentOffset - 28) / 44), 0), 1)
+        return Array((ranked + Self.fallbackReactions).uniqued().prefix(4))
     }
 
     private var recordedDateLabel: String {
         "Recorded \(hum.createdAt.formatted(date: .abbreviated, time: .shortened))"
+    }
+
+    private var recordedHeadlineLabel: String {
+        if Calendar.current.isDateInToday(hum.createdAt) {
+            return "Recorded Today"
+        }
+        return "Recorded \(hum.createdAt.formatted(date: .abbreviated, time: .omitted))"
     }
 
     // MARK: - Header
@@ -143,21 +163,39 @@ struct ResultsView: View {
             }
             .buttonStyle(.plain)
 
-            Text(compactTitle)
-                .font(.system(size: 24, weight: .regular))
-                .lineLimit(1)
-                .truncationMode(.tail)
-                .foregroundStyle(Color.white.opacity(0.5))
-                .frame(maxWidth: .infinity, alignment: .center)
+            Spacer()
 
-            Color.clear
-                .frame(width: 44, height: 44)
+            reactionButton
+        }
+        .overlay(alignment: .topTrailing) {
+            if isReactionStripVisible {
+                quickReactionStrip
+                    .padding(.top, 54)
+                    .transition(.opacity.combined(with: .move(edge: .top)))
+                    .zIndex(2)
+            }
         }
     }
 
    
     
     // MARK: - Hum info
+
+    private var title: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text(currentHum.name)
+                .foregroundStyle(HumTheme.greetingGray)
+                .lineLimit(1)
+                .truncationMode(.tail)
+            Text(recordedHeadlineLabel)
+                .foregroundStyle(Color.white.opacity(0.9))
+                .lineLimit(1)
+                .truncationMode(.tail)
+        }
+        .font(.system(size: 32, weight: .regular))
+        .kerning(-0.5)
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
 
     private var humInfo: some View {
         VStack(alignment: .center, spacing: 0) {
@@ -189,7 +227,7 @@ struct ResultsView: View {
             MetaChip(label: "BPM", value: "~\(hum.bpm)")
             MetaChip(label: "TIME", value: hum.timeSignature)
         }
-        .frame(maxWidth: .infinity, alignment: .center)
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
    
@@ -271,64 +309,17 @@ struct ResultsView: View {
     @ViewBuilder
     private var actions: some View {
         switch mode {
-        case .fresh(let onSave, _, _):
-            actionBar {
+        case .fresh(_, _, let onClose):
+            VStack(spacing: 14) {
                 exportButton
-                micPlaybackButton
-
-                Button {
-                    let humToSave = currentHum
-                    Haptics.success()
-                    leaveResults {
-                        onSave(humToSave)
-                    }
-                } label: {
-                    actionLabel(systemName: "checkmark", title: "Save")
-                }
-                .buttonStyle(ResultActionButtonStyle())
+                deleteHumButton(action: onClose)
             }
-
         case .saved(let onDelete, _):
-            actionBar {
+            VStack(spacing: 14) {
                 exportButton
-                micPlaybackButton
-
-                Button(role: .destructive) {
-                    Haptics.warning()
-                    leaveResults(onDelete)
-                } label: {
-                    actionLabel(systemName: "trash", title: "Delete Hum")
-                }
-                .buttonStyle(ResultActionButtonStyle())
+                deleteHumButton(action: onDelete)
             }
         }
-    }
-
-    @ViewBuilder
-    private func actionBar<Content: View>(@ViewBuilder content: () -> Content) -> some View {
-        HStack(spacing: 6) {
-            content()
-        }
-        .padding(6)
-        .frame(maxWidth: .infinity)
-        .background(Color.black.opacity(0.3), in: Capsule())
-        .background(.ultraThinMaterial, in: Capsule())
-        .overlay(Capsule().strokeBorder(Color.white.opacity(0.12), lineWidth: 1))
-    }
-
-    private var micPlaybackButton: some View {
-        Button {
-            Haptics.selection()
-            player.toggle()
-        } label: {
-            Image(systemName: player.isPlaying ? "pause.fill" : "mic.fill")
-                .font(.system(size: 20, weight: .semibold))
-                .foregroundStyle(Color.white.opacity(player.isPlaying ? 0.9 : 0.82))
-                .frame(maxWidth: .infinity)
-                .frame(height: 52)
-                .accessibilityLabel(player.isPlaying ? "Pause hum" : "Play hum")
-        }
-        .buttonStyle(ResultActionButtonStyle())
     }
 
     private func darkMaterialIcon(systemName: String, accessibilityLabel: String) -> some View {
@@ -343,22 +334,165 @@ struct ResultsView: View {
             .accessibilityLabel(accessibilityLabel)
     }
 
-    private func actionLabel(systemName: String, title: String) -> some View {
-        Label(title, systemImage: systemName)
-            .labelStyle(.iconOnly)
-            .font(.system(size: 20, weight: .semibold))
-            .frame(maxWidth: .infinity)
-            .frame(height: 52)
-            .accessibilityLabel(title)
+    private var reactionButton: some View {
+        Button {
+            Haptics.light()
+            presentReactionPicker()
+        } label: {
+            reactionIconLabel
+        }
+        .buttonStyle(.plain)
+        .simultaneousGesture(
+            LongPressGesture(minimumDuration: 0.35).onEnded { _ in
+                Haptics.selection()
+                withAnimation(.spring(response: 0.28, dampingFraction: 0.82)) {
+                    isReactionStripVisible.toggle()
+                }
+            }
+        )
+    }
+
+    private var reactionIconLabel: some View {
+        ZStack {
+            Circle()
+                .fill(Color.black.opacity(0.3))
+                .background(.ultraThinMaterial, in: Circle())
+                .overlay(Circle().strokeBorder(Color.white.opacity(0.12), lineWidth: 1))
+
+            if let selectedReaction {
+                Text(selectedReaction)
+                    .font(.system(size: 18))
+            } else {
+                Image(systemName: "face.smiling")
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundStyle(Color.white.opacity(0.86))
+            }
+        }
+        .frame(width: 44, height: 44)
+        .contentShape(Circle())
+        .accessibilityLabel(selectedReaction == nil ? "Add reaction" : "Change reaction")
+    }
+
+    private var quickReactionStrip: some View {
+        HStack(spacing: 8) {
+            ForEach(topReactions, id: \.self) { reaction in
+                Button {
+                    selectReaction(reaction)
+                } label: {
+                    Text(reaction)
+                        .font(.system(size: 20))
+                        .frame(width: 36, height: 36)
+                        .background(
+                            Circle().fill(reaction == selectedReaction ? Color.white.opacity(0.18) : Color.white.opacity(0.08))
+                        )
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("React with \(reaction)")
+            }
+
+            Button {
+                presentReactionPicker()
+            } label: {
+                Image(systemName: "plus")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(Color.white.opacity(0.86))
+                    .frame(width: 36, height: 36)
+                    .background(Circle().fill(Color.white.opacity(0.08)))
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("More reactions")
+        }
+        .padding(8)
+        .background(Color.black.opacity(0.3), in: Capsule())
+        .background(.ultraThinMaterial, in: Capsule())
+        .overlay(Capsule().strokeBorder(Color.white.opacity(0.12), lineWidth: 1))
+        .shadow(color: .black.opacity(0.24), radius: 18, y: 10)
+    }
+
+    private var reactionPickerOverlay: some View {
+        ZStack {
+            Color.black.opacity(0.38)
+                .background(.ultraThinMaterial)
+                .ignoresSafeArea()
+                .onTapGesture {
+                    dismissReactionPicker()
+                }
+
+            VStack(alignment: .leading, spacing: 20) {
+                HStack {
+                    Text("Reaction")
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundStyle(Color.white.opacity(0.9))
+
+                    Spacer()
+
+                    Button {
+                        dismissReactionPicker()
+                    } label: {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundStyle(Color.white.opacity(0.78))
+                            .frame(width: 34, height: 34)
+                            .background(Color.white.opacity(0.08), in: Circle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Close reactions")
+                }
+
+                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 10), count: 4), spacing: 10) {
+                    ForEach(Self.fallbackReactions, id: \.self) { reaction in
+                        Button {
+                            selectReaction(reaction)
+                        } label: {
+                            Text(reaction)
+                                .font(.system(size: 28))
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 52)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                        .fill(reaction == selectedReaction ? Color.white.opacity(0.16) : Color.white.opacity(0.07))
+                                )
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                        .strokeBorder(Color.white.opacity(reaction == selectedReaction ? 0.18 : 0.08), lineWidth: 1)
+                                )
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("React with \(reaction)")
+                    }
+                }
+
+                if selectedReaction != nil {
+                    Button("Remove reaction") {
+                        selectReaction(nil)
+                    }
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundStyle(Color.white.opacity(0.5))
+                    .frame(maxWidth: .infinity)
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(22)
+            .frame(maxWidth: 320)
+            .background(Color.black.opacity(0.34), in: RoundedRectangle(cornerRadius: 28, style: .continuous))
+            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 28, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 28, style: .continuous)
+                    .strokeBorder(Color.white.opacity(0.12), lineWidth: 1)
+            )
+            .shadow(color: .black.opacity(0.3), radius: 28, y: 18)
+            .padding(.horizontal, 24)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     @ViewBuilder
     private var exportButton: some View {
         if let midiURL {
             ShareLink(item: midiURL) {
-                actionLabel(systemName: "square.and.arrow.up", title: "Export MIDI")
+                downloadMIDILabel
             }
-            .buttonStyle(ResultActionButtonStyle())
+            .buttonStyle(DownloadMIDIButtonStyle())
             .simultaneousGesture(
                 TapGesture().onEnded {
                     Haptics.light()
@@ -366,10 +500,56 @@ struct ResultsView: View {
             )
         } else {
             Button {} label: {
-                actionLabel(systemName: "square.and.arrow.up", title: "Export MIDI")
+                downloadMIDILabel
             }
-            .buttonStyle(ResultActionButtonStyle())
+            .buttonStyle(DownloadMIDIButtonStyle())
             .disabled(true)
+        }
+    }
+
+    private var downloadMIDILabel: some View {
+        Text("Download MIDI file")
+            .font(.system(size: 16, weight: .medium))
+            .frame(maxWidth: .infinity)
+            .frame(height: 56)
+            .contentShape(Capsule())
+            .accessibilityLabel("Download MIDI file")
+    }
+
+    private func deleteHumButton(action: @escaping () -> Void) -> some View {
+        Button(role: .destructive) {
+            Haptics.warning()
+            leaveResults(action)
+        } label: {
+            Text("Delete hum")
+                .font(.system(size: 14, weight: .medium))
+                .foregroundStyle(Color.white.opacity(0.42))
+                .padding(.vertical, 8)
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func presentReactionPicker() {
+        withAnimation(.spring(response: 0.3, dampingFraction: 0.86)) {
+            isReactionStripVisible = false
+            isReactionPickerPresented = true
+        }
+    }
+
+    private func dismissReactionPicker() {
+        withAnimation(.easeInOut(duration: 0.2)) {
+            isReactionPickerPresented = false
+        }
+    }
+
+    private func selectReaction(_ reaction: String?) {
+        selectedReaction = reaction
+        if case .saved = mode {
+            store.setReaction(reaction, for: hum)
+        }
+        withAnimation(.easeInOut(duration: 0.18)) {
+            isReactionStripVisible = false
+            isReactionPickerPresented = false
         }
     }
 
@@ -416,6 +596,13 @@ private struct ResultsScrollOffsetPreferenceKey: PreferenceKey {
 
     static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
         value = nextValue()
+    }
+}
+
+private extension Array where Element: Hashable {
+    func uniqued() -> [Element] {
+        var seen = Set<Element>()
+        return filter { seen.insert($0).inserted }
     }
 }
 
@@ -498,6 +685,20 @@ struct ResultActionButtonStyle: ButtonStyle {
     }
 }
 
+struct DownloadMIDIButtonStyle: ButtonStyle {
+    @Environment(\.isEnabled) private var isEnabled
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .foregroundStyle(Color.white.opacity(isEnabled ? 0.9 : 0.32))
+            .background(Color.black.opacity(configuration.isPressed ? 0.38 : 0.3), in: Capsule())
+            .background(.ultraThinMaterial, in: Capsule())
+            .overlay(Capsule().strokeBorder(Color.white.opacity(0.12), lineWidth: 1))
+            .scaleEffect(configuration.isPressed ? 0.985 : 1)
+            .animation(.spring(response: 0.24, dampingFraction: 0.76), value: configuration.isPressed)
+    }
+}
+
 struct OutlinePillButtonStyle: ButtonStyle {
     var textColor: Color = .white
 
@@ -565,4 +766,5 @@ private struct MetaChip: View {
         audioURL: URL(fileURLWithPath: "/dev/null"),
         mode: .fresh(onSave: { _ in }, onRecordAgain: {}, onClose: {})
     )
+    .environmentObject(HumStore())
 }

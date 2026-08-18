@@ -31,6 +31,8 @@ struct LibraryView: View {
     @State private var isTextVisible = false
     @State private var isClosing = false
 
+    private let fallbackReactions = ["❤️", "🔥", "✨", "😭", "😍", "🫶", "🎵", "💡", "🚀", "🌙", "👏", "😌"]
+
     init(onClose: (() -> Void)? = nil) {
         self.onClose = onClose
     }
@@ -48,7 +50,7 @@ struct LibraryView: View {
 
                     title
                         .padding(.horizontal, 24)
-                        .padding(.top, 8)
+                        .padding(.top, 14)
                         .padding(.bottom, isSearchVisible ? 12 : 24)
 
                     if isSearchVisible {
@@ -214,6 +216,18 @@ struct LibraryView: View {
         }
     }
 
+    private var topReactions: [String] {
+        let ranked = Dictionary(grouping: store.hums.compactMap(\.emojiReaction), by: { $0 })
+            .map { reaction, uses in (reaction: reaction, count: uses.count) }
+            .sorted {
+                if $0.count == $1.count { return $0.reaction < $1.reaction }
+                return $0.count > $1.count
+            }
+            .map { $0.reaction }
+
+        return Array((ranked + fallbackReactions).uniqued().prefix(4))
+    }
+
     @ViewBuilder
     private func topNavIconLabel(systemName: String, accessibilityLabel: String) -> some View {
         let label = Image(systemName: systemName)
@@ -237,10 +251,14 @@ struct LibraryView: View {
             ForEach(visibleHums) { hum in
                 HumRow(
                     hum: hum,
+                    topReactions: topReactions,
                     onOpen: { openHum(hum) },
                     onReactionTap: {
                         Haptics.light()
                         reactionHum = hum
+                    },
+                    onReactionSelect: { reaction in
+                        store.setReaction(reaction, for: hum)
                     }
                 )
                 .humMatchedTransitionSource(id: hum.id, in: navigationNamespace)
@@ -330,39 +348,110 @@ struct LibraryView: View {
 /// A single saved hum row with name, chord metadata, and an inline emoji reaction.
 struct HumRow: View {
     let hum: Hum
+    let topReactions: [String]
     let onOpen: () -> Void
     let onReactionTap: () -> Void
+    let onReactionSelect: (String) -> Void
+
+    @State private var isReactionStripVisible = false
 
     var body: some View {
-        HStack(spacing: 12) {
-            Button(action: onOpen) {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text(hum.name)
-                        .font(.system(size: 16, weight: .regular))
-                        .foregroundStyle(HumTheme.ink)
-                        .lineLimit(1)
+        VStack(alignment: .trailing, spacing: 10) {
+            HStack(spacing: 12) {
+                Button(action: onOpen) {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text(hum.name)
+                            .font(.system(size: 16, weight: .regular))
+                            .foregroundStyle(HumTheme.ink)
+                            .lineLimit(1)
 
-                    Text(chordSummary)
-                        .font(.system(size: 12))
-                        .foregroundStyle(HumTheme.grayText)
-                        .lineLimit(1)
+                        Text(chordSummary)
+                            .font(.system(size: 12))
+                            .foregroundStyle(HumTheme.grayText)
+                            .lineLimit(1)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .contentShape(Rectangle())
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
+                .buttonStyle(.plain)
 
-            Button(action: onReactionTap) {
-                ReactionIcon(reaction: hum.emojiReaction)
+                Button(action: onReactionTap) {
+                    ReactionIcon(reaction: hum.emojiReaction)
+                }
+                .buttonStyle(.plain)
+                .simultaneousGesture(
+                    LongPressGesture(minimumDuration: 0.35).onEnded { _ in
+                        Haptics.selection()
+                        withAnimation(.spring(response: 0.28, dampingFraction: 0.82)) {
+                            isReactionStripVisible.toggle()
+                        }
+                    }
+                )
+                .accessibilityLabel(hum.emojiReaction == nil ? "Add reaction" : "Change reaction")
             }
-            .buttonStyle(.plain)
-            .accessibilityLabel(hum.emojiReaction == nil ? "Add reaction" : "Change reaction")
+
+            if isReactionStripVisible {
+                quickReactionStrip
+                    .transition(.opacity.combined(with: .move(edge: .top)))
+            }
         }
         .padding(.vertical, 16)
     }
 
     private var chordSummary: String {
         hum.chords.prefix(4).joined(separator: " · ")
+    }
+
+    private var quickReactionStrip: some View {
+        HStack(spacing: 8) {
+            ForEach(topReactions, id: \.self) { reaction in
+                Button {
+                    Haptics.selection()
+                    onReactionSelect(reaction)
+                    withAnimation(.easeInOut(duration: 0.18)) {
+                        isReactionStripVisible = false
+                    }
+                } label: {
+                    Text(reaction)
+                        .font(.system(size: 18))
+                        .frame(width: 34, height: 34)
+                        .background(
+                            Circle().fill(reaction == hum.emojiReaction ? Color.black.opacity(0.08) : Color.black.opacity(0.035))
+                        )
+                        .overlay(Circle().strokeBorder(Color.black.opacity(0.06), lineWidth: 1))
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("React with \(reaction)")
+            }
+
+            Button {
+                Haptics.light()
+                withAnimation(.easeInOut(duration: 0.18)) {
+                    isReactionStripVisible = false
+                }
+                onReactionTap()
+            } label: {
+                Image(systemName: "plus")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(HumTheme.ink.opacity(0.74))
+                    .frame(width: 34, height: 34)
+                    .background(Circle().fill(Color.black.opacity(0.035)))
+                    .overlay(Circle().strokeBorder(Color.black.opacity(0.06), lineWidth: 1))
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("More reactions")
+        }
+        .padding(7)
+        .background(Color.white.opacity(0.82), in: Capsule())
+        .overlay(Capsule().strokeBorder(Color.black.opacity(0.07), lineWidth: 1))
+        .shadow(color: .black.opacity(0.08), radius: 14, y: 8)
+    }
+}
+
+private extension Array where Element: Hashable {
+    func uniqued() -> [Element] {
+        var seen = Set<Element>()
+        return filter { seen.insert($0).inserted }
     }
 }
 

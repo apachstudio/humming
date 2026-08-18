@@ -15,6 +15,14 @@ struct ProcessingView: View {
                     bloomSize: bloomSize,
                     screenSize: proxy.size
                 )
+
+                Text("Processing your hum")
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundStyle(Color.white.opacity(0.42))
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: .infinity)
+                    .opacity(introBloom ? 1 : 0)
+                    .offset(y: introBloom ? 0 : 8)
             }
         }
         .preferredColorScheme(.dark)
