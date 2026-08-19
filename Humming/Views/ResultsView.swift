@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 /// Dark results screen: analyzed hum name, detected meta, chord grid, playback and actions.
 struct ResultsView: View {
@@ -25,9 +26,20 @@ struct ResultsView: View {
     @State private var isLeaving = false
     @State private var isReactionStripVisible = false
     @State private var isReactionMenuExpanded = false
+    @State private var highlightedReaction: String?
+    @State private var reactionOptionFrames: [String: CGRect] = [:]
     @State private var scrollContentOffset: CGFloat = 0
+    @State private var resultsScrollView: UIScrollView?
+    @State private var isAutoScrolling = false
+    @State private var selectedAutoScrollSpeed: Double = 1
+    @State private var highlightedAutoScrollSpeed: Double?
+    @State private var isAutoScrollSpeedMenuVisible = false
+    @State private var autoScrollSpeedFrames: [Double: CGRect] = [:]
+    @State private var autoScrollCompletionTask: Task<Void, Never>?
 
     private let contentInset: CGFloat = 24
+    private let autoScrollBottomID = "resultsAutoScrollBottom"
+    private let autoScrollSpeeds: [Double] = [1, 1.5, 2, 2.5]
     private static let fallbackReactions = ["❤️", "🔥", "✨", "😭", "😍", "🫶", "🎵", "💡", "🚀", "🌙", "👏", "😌"]
 
     init(hum: Hum, audioURL: URL, mode: Mode) {
@@ -56,7 +68,7 @@ struct ResultsView: View {
 
                     VStack(spacing: 0) {
                         ScrollView(showsIndicators: false) {
-                            VStack(alignment: .leading, spacing: 24) {
+                            VStack(alignment: .leading, spacing: 32) {
                                 title
                                     .premiumTextReveal(isTextVisible, yOffset: 16, blur: 8)
                                 metaRow
@@ -67,10 +79,13 @@ struct ResultsView: View {
                                     .premiumTextReveal(isTextVisible, yOffset: 22, blur: 10)
                                 actions
                                     .premiumTextReveal(isTextVisible, yOffset: 22, blur: 10)
+                                Color.clear
+                                    .frame(height: 1)
+                                    .id(autoScrollBottomID)
                             }
                             .frame(width: contentWidth, alignment: .leading)
-                            .padding(.top, 94)
-                            .padding(.bottom, 40)
+                            .padding(.top, 110)
+                            .padding(.bottom, 32)
                             .background(
                                 GeometryReader { scrollProxy in
                                     Color.clear.preference(
@@ -83,9 +98,19 @@ struct ResultsView: View {
                             .frame(maxWidth: .infinity)
                         }
                         .coordinateSpace(name: "resultsScroll")
+                        .simultaneousGesture(
+                            DragGesture(minimumDistance: 1).onChanged { _ in
+                                if isAutoScrolling {
+                                    stopAutoScroll()
+                                }
+                            }
+                        )
                         .onPreferenceChange(ResultsScrollOffsetPreferenceKey.self) { value in
                             scrollContentOffset = value
                         }
+                        .background(ScrollViewAccessor { scrollView in
+                            resultsScrollView = scrollView
+                        })
                         .clipped()
                     }
                     .frame(width: contentWidth, height: proxy.size.height)
@@ -127,7 +152,7 @@ struct ResultsView: View {
                     .transition(.opacity.combined(with: .move(edge: .trailing)))
                     .zIndex(2)
                 }
-            }
+        }
         }
         .preferredColorScheme(.dark)
         .onAppear {
@@ -136,6 +161,7 @@ struct ResultsView: View {
             midiURL = try? MIDIExporter.export(hum: currentHum)
         }
         .onDisappear {
+            autoScrollCompletionTask?.cancel()
             player.stop()
             chordPlayer.stop()
         }
@@ -193,8 +219,15 @@ struct ResultsView: View {
 
             Spacer()
 
+            if isAutoScrollSpeedMenuVisible {
+                autoScrollSpeedMenu
+                    .transition(.opacity.combined(with: .move(edge: .trailing)))
+            }
+
+            autoScrollButton
             reactionButton
         }
+        .animation(.spring(response: 0.28, dampingFraction: 0.82), value: isAutoScrollSpeedMenuVisible)
     }
 
    
@@ -354,20 +387,224 @@ struct ResultsView: View {
             .accessibilityLabel(accessibilityLabel)
     }
 
-    private var reactionButton: some View {
-        Button {
-            Haptics.light()
-            presentReactionMenu()
-        } label: {
-            reactionIconLabel
+    private var autoScrollButton: some View {
+        let speedSelectionGesture = LongPressGesture(minimumDuration: 0.3)
+            .sequenced(before: DragGesture(minimumDistance: 0, coordinateSpace: .global))
+            .onChanged { value in
+                switch value {
+                case .first(true):
+                    presentAutoScrollSpeedMenu()
+                case .second(true, let drag?):
+                    presentAutoScrollSpeedMenu()
+                    updateAutoScrollSpeedHighlight(at: drag.location)
+                default:
+                    break
+                }
+            }
+            .onEnded { value in
+                switch value {
+                case .second(true, let drag?):
+                    updateAutoScrollSpeedHighlight(at: drag.location)
+                default:
+                    break
+                }
+                applyAutoScrollSpeedSelection()
+            }
+
+        return autoScrollIconLabel
+            .onTapGesture {
+                Haptics.light()
+                if isAutoScrolling {
+                    stopAutoScroll()
+                } else {
+                    startAutoScroll(speed: selectedAutoScrollSpeed)
+                }
+            }
+            .gesture(speedSelectionGesture)
+    }
+
+    private var autoScrollIconLabel: some View {
+        ZStack {
+            Circle()
+                .fill(Color.black.opacity(0.3))
+                .background(.ultraThinMaterial, in: Circle())
+                .overlay(Circle().strokeBorder(Color.white.opacity(0.12), lineWidth: 1))
+
+            if isAutoScrolling {
+                Text(autoScrollSpeedLabel(selectedAutoScrollSpeed))
+                    .font(.system(size: 13, weight: .bold))
+                    .foregroundStyle(Color.white.opacity(0.9))
+                    .lineLimit(1)
+            } else {
+                Image(systemName: "arrow.down")
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundStyle(Color.white.opacity(0.86))
+            }
         }
-        .buttonStyle(.plain)
-        .simultaneousGesture(
-            LongPressGesture(minimumDuration: 0.35).onEnded { _ in
-                Haptics.selection()
+        .frame(width: 44, height: 44)
+        .contentShape(Circle())
+        .accessibilityLabel(isAutoScrolling ? "Stop auto scroll" : "Auto scroll")
+    }
+
+    private var autoScrollSpeedMenu: some View {
+        HStack(spacing: 6) {
+            ForEach(autoScrollSpeeds, id: \.self) { speed in
+                autoScrollSpeedOption(speed)
+            }
+        }
+        .padding(7)
+        .background(Color.black.opacity(0.3), in: Capsule())
+        .background(.ultraThinMaterial, in: Capsule())
+        .overlay(Capsule().strokeBorder(Color.white.opacity(0.12), lineWidth: 1))
+        .shadow(color: .black.opacity(0.24), radius: 18, y: 10)
+        .onPreferenceChange(AutoScrollSpeedFramePreferenceKey.self) { frames in
+            autoScrollSpeedFrames = frames
+        }
+    }
+
+    private func autoScrollSpeedOption(_ speed: Double) -> some View {
+        let activeSpeed = highlightedAutoScrollSpeed ?? selectedAutoScrollSpeed
+        let isActive = activeSpeed == speed
+        let fontSize: CGFloat = isActive ? 14 : 12
+        let foregroundOpacity: Double = isActive ? 0.95 : 0.66
+        let fillOpacity: Double = isActive ? 0.18 : 0.08
+        let width: CGFloat = isActive ? 45 : 39
+        let height: CGFloat = isActive ? 34 : 30
+        let scale: CGFloat = isActive ? 1.06 : 1
+
+        return Text(autoScrollSpeedLabel(speed))
+            .font(.system(size: fontSize, weight: .semibold))
+            .foregroundStyle(Color.white.opacity(foregroundOpacity))
+            .frame(width: width, height: height)
+            .background(Capsule().fill(Color.white.opacity(fillOpacity)))
+            .overlay(Capsule().strokeBorder(Color.white.opacity(fillOpacity), lineWidth: 1))
+            .background(autoScrollSpeedFrameReader(for: speed))
+            .scaleEffect(scale)
+            .animation(.spring(response: 0.2, dampingFraction: 0.78), value: isActive)
+    }
+
+    private func autoScrollSpeedFrameReader(for speed: Double) -> some View {
+        GeometryReader { proxy in
+            Color.clear.preference(
+                key: AutoScrollSpeedFramePreferenceKey.self,
+                value: [speed: proxy.frame(in: .global)]
+            )
+        }
+    }
+
+    private func presentAutoScrollSpeedMenu() {
+        guard !isAutoScrollSpeedMenuVisible else { return }
+        highlightedAutoScrollSpeed = selectedAutoScrollSpeed
+        Haptics.selection()
+        withAnimation(.spring(response: 0.28, dampingFraction: 0.82)) {
+            isAutoScrollSpeedMenuVisible = true
+        }
+    }
+
+    private func updateAutoScrollSpeedHighlight(at location: CGPoint) {
+        guard let speed = autoScrollSpeedFrames.first(where: { _, frame in
+            frame.insetBy(dx: -8, dy: -12).contains(location)
+        })?.key else { return }
+
+        if highlightedAutoScrollSpeed != speed {
+            highlightedAutoScrollSpeed = speed
+            Haptics.selection()
+        }
+    }
+
+    private func applyAutoScrollSpeedSelection() {
+        let speed = highlightedAutoScrollSpeed ?? selectedAutoScrollSpeed
+        selectedAutoScrollSpeed = speed
+        highlightedAutoScrollSpeed = nil
+        withAnimation(.easeInOut(duration: 0.16)) {
+            isAutoScrollSpeedMenuVisible = false
+        }
+        Haptics.light()
+        startAutoScroll(speed: speed)
+    }
+
+    private func startAutoScroll(speed: Double) {
+        guard let scrollView = resultsScrollView else { return }
+        let duration = autoScrollDuration(for: speed)
+        autoScrollCompletionTask?.cancel()
+        isAutoScrolling = true
+        isAutoScrollSpeedMenuVisible = false
+        scrollView.layer.removeAllAnimations()
+
+        let maxOffsetY = max(
+            -scrollView.adjustedContentInset.top,
+            scrollView.contentSize.height - scrollView.bounds.height + scrollView.adjustedContentInset.bottom
+        )
+
+        UIView.animate(
+            withDuration: duration,
+            delay: 0,
+            options: [.curveLinear, .allowUserInteraction]
+        ) {
+            scrollView.contentOffset = CGPoint(x: scrollView.contentOffset.x, y: maxOffsetY)
+        }
+
+        autoScrollCompletionTask = Task {
+            try? await Task.sleep(nanoseconds: UInt64(duration * 1_000_000_000))
+            guard !Task.isCancelled else { return }
+            await MainActor.run {
+                isAutoScrolling = false
+                autoScrollCompletionTask = nil
+            }
+        }
+    }
+
+    private func stopAutoScroll() {
+        guard let scrollView = resultsScrollView else {
+            isAutoScrolling = false
+            return
+        }
+        autoScrollCompletionTask?.cancel()
+        autoScrollCompletionTask = nil
+        scrollView.layer.removeAllAnimations()
+        scrollView.setContentOffset(scrollView.contentOffset, animated: false)
+        isAutoScrolling = false
+        isAutoScrollSpeedMenuVisible = false
+    }
+
+    private func autoScrollDuration(for speed: Double) -> Double {
+        max(2.4, 10 / speed)
+    }
+
+    private func autoScrollSpeedLabel(_ speed: Double) -> String {
+        speed == floor(speed) ? "\(Int(speed))x" : "\(speed)x"
+    }
+
+    private var reactionButton: some View {
+        let reactionSelectionGesture = LongPressGesture(minimumDuration: 0.3)
+            .sequenced(before: DragGesture(minimumDistance: 0, coordinateSpace: .global))
+            .onChanged { value in
+                switch value {
+                case .first(true):
+                    presentReactionMenu()
+                case .second(true, let drag?):
+                    presentReactionMenu()
+                    updateReactionHighlight(at: drag.location)
+                default:
+                    break
+                }
+            }
+            .onEnded { value in
+                switch value {
+                case .second(true, let drag?):
+                    updateReactionHighlight(at: drag.location)
+                default:
+                    break
+                }
+                applyReactionSelection()
+            }
+
+        return reactionIconLabel
+            .onTapGesture {
+                Haptics.light()
                 presentReactionMenu()
             }
-        )
+            .gesture(reactionSelectionGesture)
     }
 
     private var reactionIconLabel: some View {
@@ -395,18 +632,7 @@ struct ResultsView: View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
                 ForEach(reactionOptions, id: \.self) { reaction in
-                    Button {
-                        selectReaction(reaction == selectedReaction ? nil : reaction)
-                    } label: {
-                        Text(reaction)
-                            .font(.system(size: 20))
-                            .frame(width: 36, height: 36)
-                            .background(
-                                Circle().fill(reaction == selectedReaction ? Color.white.opacity(0.18) : Color.white.opacity(0.08))
-                            )
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("React with \(reaction)")
+                    reactionOption(reaction)
                 }
 
                 if !isReactionMenuExpanded {
@@ -444,6 +670,43 @@ struct ResultsView: View {
         .background(.ultraThinMaterial, in: Capsule())
         .overlay(Capsule().strokeBorder(Color.white.opacity(0.12), lineWidth: 1))
         .shadow(color: .black.opacity(0.24), radius: 18, y: 10)
+        .onPreferenceChange(ReactionOptionFramePreferenceKey.self) { frames in
+            reactionOptionFrames = frames
+        }
+    }
+
+    private func reactionOption(_ reaction: String) -> some View {
+        let isHovered = highlightedReaction == reaction
+        let isSelected = selectedReaction == reaction
+        let fontSize: CGFloat = isHovered ? 28 : 20
+        let frameSize: CGFloat = isHovered ? 44 : 36
+        let fillOpacity: Double = isHovered ? 0.22 : (isSelected ? 0.16 : 0.07)
+        let strokeOpacity: Double = isHovered ? 0.22 : 0.08
+
+        return Button {
+            selectReaction(reaction == selectedReaction ? nil : reaction)
+        } label: {
+            Text(reaction)
+                .font(.system(size: fontSize))
+                .frame(width: frameSize, height: frameSize)
+                .background(Circle().fill(Color.white.opacity(fillOpacity)))
+                .overlay(Circle().strokeBorder(Color.white.opacity(strokeOpacity), lineWidth: 1))
+                .shadow(color: .white.opacity(isHovered ? 0.12 : 0), radius: 10, y: 3)
+                .background(reactionOptionFrameReader(for: reaction))
+                .scaleEffect(isHovered ? 1.05 : 1)
+                .animation(.spring(response: 0.2, dampingFraction: 0.76), value: isHovered)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("React with \(reaction)")
+    }
+
+    private func reactionOptionFrameReader(for reaction: String) -> some View {
+        GeometryReader { proxy in
+            Color.clear.preference(
+                key: ReactionOptionFramePreferenceKey.self,
+                value: [reaction: proxy.frame(in: .global)]
+            )
+        }
     }
 
     private var reactionDimmingLayer: some View {
@@ -501,6 +764,7 @@ struct ResultsView: View {
         withAnimation(.spring(response: 0.3, dampingFraction: 0.86)) {
             isReactionStripVisible = true
             isReactionMenuExpanded = false
+            highlightedReaction = selectedReaction
         }
     }
 
@@ -508,6 +772,7 @@ struct ResultsView: View {
         withAnimation(.easeInOut(duration: 0.2)) {
             isReactionStripVisible = false
             isReactionMenuExpanded = false
+            highlightedReaction = nil
         }
     }
 
@@ -519,7 +784,29 @@ struct ResultsView: View {
         withAnimation(.easeInOut(duration: 0.18)) {
             isReactionStripVisible = false
             isReactionMenuExpanded = false
+            highlightedReaction = nil
         }
+    }
+
+    private func updateReactionHighlight(at location: CGPoint) {
+        guard let reaction = reactionOptionFrames.first(where: { _, frame in
+            frame.insetBy(dx: -10, dy: -14).contains(location)
+        })?.key else { return }
+
+        if highlightedReaction != reaction {
+            highlightedReaction = reaction
+            Haptics.selection()
+        }
+    }
+
+    private func applyReactionSelection() {
+        guard let reaction = highlightedReaction else {
+            dismissReactionMenu()
+            return
+        }
+
+        Haptics.light()
+        selectReaction(reaction == selectedReaction ? nil : reaction)
     }
 
     private var resultsGlow: some View {
@@ -565,6 +852,57 @@ private struct ResultsScrollOffsetPreferenceKey: PreferenceKey {
 
     static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
         value = nextValue()
+    }
+}
+
+private struct AutoScrollSpeedFramePreferenceKey: PreferenceKey {
+    static var defaultValue: [Double: CGRect] = [:]
+
+    static func reduce(value: inout [Double: CGRect], nextValue: () -> [Double: CGRect]) {
+        value.merge(nextValue(), uniquingKeysWith: { _, new in new })
+    }
+}
+
+private struct ReactionOptionFramePreferenceKey: PreferenceKey {
+    static var defaultValue: [String: CGRect] = [:]
+
+    static func reduce(value: inout [String: CGRect], nextValue: () -> [String: CGRect]) {
+        value.merge(nextValue(), uniquingKeysWith: { _, new in new })
+    }
+}
+
+private struct ScrollViewAccessor: UIViewRepresentable {
+    let onResolve: (UIScrollView) -> Void
+
+    func makeUIView(context: Context) -> UIView {
+        let view = UIView()
+        resolve(from: view)
+        return view
+    }
+
+    func updateUIView(_ uiView: UIView, context: Context) {
+        resolve(from: uiView)
+    }
+
+    private func resolve(from view: UIView) {
+        DispatchQueue.main.async {
+            if let scrollView = view.enclosingScrollView {
+                onResolve(scrollView)
+            }
+        }
+    }
+}
+
+private extension UIView {
+    var enclosingScrollView: UIScrollView? {
+        var candidate = superview
+        while let view = candidate {
+            if let scrollView = view as? UIScrollView {
+                return scrollView
+            }
+            candidate = view.superview
+        }
+        return nil
     }
 }
 

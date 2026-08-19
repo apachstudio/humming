@@ -31,6 +31,7 @@ struct LibraryView: View {
     @State private var isTextVisible = false
     @State private var isClosing = false
     @State private var isReactionMenuExpanded = false
+    @State private var scrollContentOffset: CGFloat = 0
 
     private let fallbackReactions = ["❤️", "🔥", "✨", "😭", "😍", "🫶", "🎵", "💡", "🚀", "🌙", "👏", "😌"]
 
@@ -39,66 +40,52 @@ struct LibraryView: View {
     }
 
     var body: some View {
-        NavigationStack {
-            ZStack {
-                Group {
-                    Color.white.ignoresSafeArea()
-                    libraryBackdrop
+        ZStack {
+            Group {
+                Color.white.ignoresSafeArea()
+                libraryBackdrop
 
+                ZStack(alignment: .top) {
                     VStack(spacing: 0) {
                         header
                             .padding(.horizontal, 24)
                             .frame(height: 80)
 
-                        title
-                            .padding(.horizontal, 24)
-                            .padding(.top, 14)
-                            .padding(.bottom, isSearchVisible ? 12 : 24)
-
-                        if isSearchVisible {
-                            searchBar
-                                .padding(.horizontal, 24)
-                                .padding(.bottom, 16)
-                                .premiumTextReveal(isTextVisible, yOffset: 10, blur: 6)
-                        }
-
-                        if visibleHums.isEmpty {
-                            emptyState
-                                .premiumTextReveal(isTextVisible, yOffset: 18, blur: 9)
-                        } else {
-                            humList
-                                .premiumTextReveal(isTextVisible, yOffset: 18, blur: 9)
-                        }
+                        humList
+                            .premiumTextReveal(isTextVisible, yOffset: 18, blur: 9)
                     }
-                }
-                .blur(radius: activeReactionHumID == nil ? 0 : 6)
-                .animation(.easeInOut(duration: 0.2), value: activeReactionHumID)
 
-                if activeReactionHumID != nil {
-                    reactionDimmingLayer
-                        .transition(.opacity)
-                        .zIndex(1)
+                    collapsingTitle
+                        .allowsHitTesting(false)
                 }
             }
-            .overlayPreferenceValue(ReactionAnchorPreferenceKey.self) { anchors in
-                reactionMenuOverlay(anchors: anchors)
+            .blur(radius: activeReactionHumID == nil ? 0 : 6)
+            .animation(.easeInOut(duration: 0.2), value: activeReactionHumID)
+
+            if activeReactionHumID != nil {
+                reactionDimmingLayer
+                    .transition(.opacity)
+                    .zIndex(1)
             }
-            .navigationDestination(item: $selectedHum) { hum in
-                ResultsView(
-                    hum: hum,
-                    audioURL: store.audioURL(for: hum),
-                    mode: .saved(
-                        onDelete: {
-                            store.delete(hum)
-                            returnFromHum()
-                        },
-                        onBack: returnFromHum
-                    )
+        }
+        .overlayPreferenceValue(ReactionAnchorPreferenceKey.self) { anchors in
+            reactionMenuOverlay(anchors: anchors)
+        }
+        .navigationDestination(item: $selectedHum) { hum in
+            ResultsView(
+                hum: hum,
+                audioURL: store.audioURL(for: hum),
+                mode: .saved(
+                    onDelete: {
+                        store.delete(hum)
+                        returnFromHum()
+                    },
+                    onBack: returnFromHum
                 )
-                .humNavigationZoomDestination(sourceID: hum.id, in: navigationNamespace)
-                .navigationBarBackButtonHidden(true)
-                .toolbar(.hidden, for: .navigationBar)
-            }
+            )
+            .humNavigationZoomDestination(sourceID: hum.id, in: navigationNamespace)
+            .navigationBarBackButtonHidden(true)
+            .toolbar(.hidden, for: .navigationBar)
         }
         .preferredColorScheme(.light)
         .onAppear(perform: runTextEntrance)
@@ -111,27 +98,25 @@ struct LibraryView: View {
 
     private var header: some View {
         HStack {
-            LiquidGlassNavIconButton(
-                systemName: "chevron.left",
-                accessibilityLabel: "Back",
-                tone: .light
-            ) {
+            Button {
                 Haptics.light()
                 closeLibrary()
+            } label: {
+                topNavAssetIconLabel(imageName: "back", accessibilityLabel: "Back", width: 8, height: 24)
             }
+            .buttonStyle(.plain)
 
             Spacer()
 
-            LiquidGlassNavIconButton(
-                systemName: "magnifyingglass",
-                accessibilityLabel: "Search",
-                tone: .light
-            ) {
+            Button {
                 Haptics.light()
                 withAnimation(.easeInOut(duration: 0.2)) {
                     isSearchVisible.toggle()
                 }
+            } label: {
+                topNavAssetIconLabel(imageName: "search", accessibilityLabel: "Search", width: 18, height: 26)
             }
+            .buttonStyle(.plain)
 
             Menu {
                 Button("All Hums") {
@@ -147,7 +132,7 @@ struct LibraryView: View {
                     filter = .unreacted
                 }
             } label: {
-                topNavIconLabel(systemName: "line.3.horizontal.decrease", accessibilityLabel: "Filter")
+                topNavAssetIconLabel(imageName: "filter", accessibilityLabel: "Filter", width: 18, height: 18)
             }
         }
     }
@@ -160,21 +145,48 @@ struct LibraryView: View {
                 .foregroundStyle(HumTheme.ink)
         }
         .font(.system(size: 32, weight: .regular))
-        .kerning(-0.5)
+        .kerning(-0.48)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .premiumTextReveal(isTextVisible, yOffset: 16, blur: 8)
+    }
+
+    private var collapsingTitle: some View {
+        GeometryReader { proxy in
+            let progress = titleCollapseProgress
+            let largeTitleY = 112 - 54 * progress
+            let largeTitleOpacity = Double(1 - min(progress * 1.45, 1))
+            let inlineTitleOpacity = Double(max((progress - 0.52) / 0.48, 0))
+
+            ZStack(alignment: .top) {
+                title
+                    .padding(.horizontal, 24)
+                    .offset(y: largeTitleY)
+                    .opacity(largeTitleOpacity)
+
+                Text("Your hums, ready to play")
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundStyle(HumTheme.ink.opacity(0.82))
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                    .frame(width: proxy.size.width)
+                    .padding(.horizontal, 92)
+                    .offset(y: 30)
+                    .opacity(inlineTitleOpacity)
+            }
+            .animation(.easeOut(duration: 0.12), value: progress)
+        }
     }
 
     private var searchBar: some View {
         HStack(spacing: 10) {
             Image(systemName: "magnifyingglass")
-                .font(.system(size: 15, weight: .semibold))
+                .font(.system(size: 14, weight: .semibold))
                 .foregroundStyle(HumTheme.grayText)
 
             TextField("Search hums", text: $searchText)
-                .font(.system(size: 15, weight: .medium))
+                .font(.system(size: 14, weight: .medium))
                 .foregroundStyle(HumTheme.ink)
                 .textInputAutocapitalization(.never)
+                .kerning(-0.28)
 
             if !searchText.isEmpty {
                 Button {
@@ -218,6 +230,10 @@ struct LibraryView: View {
     private var activeReactionHum: Hum? {
         guard let activeReactionHumID else { return nil }
         return store.hums.first { $0.id == activeReactionHumID }
+    }
+
+    private var titleCollapseProgress: CGFloat {
+        min(max(-scrollContentOffset / 78, 0), 1)
     }
 
     private var topReactions: [String] {
@@ -283,12 +299,8 @@ struct LibraryView: View {
                         dismissReactionMenu()
                     } label: {
                         Text(reaction)
-                            .font(.system(size: 18))
+                            .font(.system(size: 32))
                             .frame(width: 34, height: 34)
-                            .background(
-                                Circle().fill(reaction == hum.emojiReaction ? Color.black.opacity(0.08) : Color.black.opacity(0.035))
-                            )
-                            .overlay(Circle().strokeBorder(Color.black.opacity(0.06), lineWidth: 1))
                     }
                     .buttonStyle(.plain)
                     .accessibilityLabel("React with \(reaction)")
@@ -352,30 +364,85 @@ struct LibraryView: View {
         }
     }
 
+    @ViewBuilder
+    private func topNavAssetIconLabel(imageName: String, accessibilityLabel: String, width: CGFloat, height: CGFloat) -> some View {
+        let label = Image(imageName)
+            .renderingMode(.template)
+            .resizable()
+            .scaledToFit()
+            .foregroundStyle(HumTheme.ink)
+            .frame(width: width, height: height)
+            .frame(width: 44, height: 44)
+            .contentShape(Circle())
+            .accessibilityLabel(accessibilityLabel)
+
+        if #available(iOS 26.0, *) {
+            label.glassEffect(.regular.interactive(), in: Circle())
+        } else {
+            label
+                .background(.ultraThinMaterial, in: Circle())
+                .overlay(Circle().strokeBorder(HumTheme.ink.opacity(0.9), lineWidth: 1))
+        }
+    }
+
     private var humList: some View {
         List {
-            ForEach(visibleHums) { hum in
-                HumRow(
-                    hum: hum,
-                    onOpen: { openHum(hum) },
-                    onReactionTap: {
-                        Haptics.light()
-                        presentReactionMenu(for: hum)
+            Color.clear
+                .frame(height: 104)
+                .background(
+                    GeometryReader { proxy in
+                        Color.clear.preference(
+                            key: LibraryScrollOffsetPreferenceKey.self,
+                            value: proxy.frame(in: .named("libraryScroll")).minY
+                        )
                     }
                 )
-                .humMatchedTransitionSource(id: hum.id, in: navigationNamespace)
                 .listRowSeparator(.hidden)
-                .listRowInsets(EdgeInsets(top: 6, leading: 24, bottom: 6, trailing: 24))
+                .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
                 .listRowBackground(Color.clear)
-                .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                    Button(role: .destructive) {
-                        Haptics.warning()
-                        store.delete(hum)
-                    } label: {
-                        Label("Delete", systemImage: "trash")
+
+            if isSearchVisible {
+                searchBar
+                    .premiumTextReveal(isTextVisible, yOffset: 10, blur: 6)
+                    .listRowSeparator(.hidden)
+                    .listRowInsets(EdgeInsets(top: 0, leading: 24, bottom: 0, trailing: 24))
+                    .listRowBackground(Color.clear)
+            }
+
+            if visibleHums.isEmpty {
+                emptyState
+                    .premiumTextReveal(isTextVisible, yOffset: 18, blur: 9)
+                    .listRowSeparator(.hidden)
+                    .listRowInsets(EdgeInsets(top: 0, leading: 24, bottom: 0, trailing: 24))
+                    .listRowBackground(Color.clear)
+            } else {
+                ForEach(visibleHums) { hum in
+                    HumRow(
+                        hum: hum,
+                        onOpen: { openHum(hum) },
+                        onReactionTap: {
+                            Haptics.light()
+                            presentReactionMenu(for: hum)
+                        }
+                    )
+                    .humMatchedTransitionSource(id: hum.id, in: navigationNamespace)
+                    .listRowSeparator(.hidden)
+                    .listRowInsets(EdgeInsets(top: 6, leading: 24, bottom: 6, trailing: 24))
+                    .listRowBackground(Color.clear)
+                    .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                        Button(role: .destructive) {
+                            Haptics.warning()
+                            store.delete(hum)
+                        } label: {
+                            Label("Delete", systemImage: "trash")
+                        }
                     }
                 }
             }
+        }
+        .coordinateSpace(name: "libraryScroll")
+        .onPreferenceChange(LibraryScrollOffsetPreferenceKey.self) { value in
+            scrollContentOffset = value
         }
         .listStyle(.plain)
         .scrollContentBackground(.hidden)
@@ -461,6 +528,14 @@ struct LibraryView: View {
     }
 }
 
+private struct LibraryScrollOffsetPreferenceKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = nextValue()
+    }
+}
+
 /// A single saved hum row with name, chord metadata, and an inline emoji reaction.
 struct HumRow: View {
     let hum: Hum
@@ -468,16 +543,17 @@ struct HumRow: View {
     let onReactionTap: () -> Void
 
     var body: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: 8) {
             Button(action: onOpen) {
                 VStack(alignment: .leading, spacing: 8) {
                     Text(hum.name)
-                        .font(.system(size: 16, weight: .regular))
-                        .foregroundStyle(HumTheme.ink)
+                        .font(.system(size: 24, weight: .medium))
+                        .foregroundStyle(HumTheme.ink.opacity(0.76))
+                        .kerning(-0.28)
                         .lineLimit(1)
 
                     Text(chordSummary)
-                        .font(.system(size: 12))
+                        .font(.system(size: 16, weight: .medium))
                         .foregroundStyle(HumTheme.grayText)
                         .lineLimit(1)
                 }
@@ -495,7 +571,9 @@ struct HumRow: View {
             }
             .accessibilityLabel(hum.emojiReaction == nil ? "Add reaction" : "Change reaction")
         }
-        .padding(.vertical, 16)
+   
+        .padding(.top, 100)
+
     }
 
     private var chordSummary: String {
@@ -529,16 +607,13 @@ private struct ReactionIcon: View {
 
             if let reaction {
                 Text(reaction)
-                    .font(.system(size: 16))
+                    .font(.system(size: 12))
             } else {
                 Image(systemName: "face.smiling")
-                    .font(.system(size: 16, weight: .regular))
+                    .font(.system(size: 20, weight: .regular))
                     .foregroundStyle(Color.black.opacity(0.34))
 
-                Image(systemName: "plus")
-                    .font(.system(size: 7, weight: .bold))
-                    .foregroundStyle(Color.black.opacity(0.38))
-                    .offset(x: 8, y: 7)
+              
             }
         }
         .frame(width: 32, height: 32)
@@ -547,6 +622,8 @@ private struct ReactionIcon: View {
 }
 
 #Preview {
-    LibraryView()
-        .environmentObject(HumStore())
+    NavigationStack {
+        LibraryView()
+            .environmentObject(HumStore())
+    }
 }
