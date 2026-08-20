@@ -34,14 +34,12 @@ struct LiquidGlassNavIconButton: View {
             .frame(width: 44, height: 44)
             .contentShape(Circle())
 
-        if #available(iOS 26.0, *) {
-            label
-                .glassEffect(.regular.interactive(), in: Circle())
-        } else {
-            label
-                .background(.ultraThinMaterial, in: Circle())
-                .overlay(Circle().strokeBorder(tone.foreground.opacity(0.12), lineWidth: 1))
-        }
+        label
+            .background(
+                Circle()
+                    .fill(.ultraThinMaterial)
+                    .overlay(Circle().strokeBorder(tone.foreground.opacity(0.12), lineWidth: 1))
+            )
     }
 }
 

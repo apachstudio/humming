@@ -88,8 +88,8 @@ enum HumMotion {
 }
 
 extension View {
-    func premiumTextReveal(_ isVisible: Bool, yOffset: CGFloat = 14, blur: CGFloat = 8) -> some View {
-        modifier(PremiumTextRevealModifier(isVisible: isVisible, yOffset: yOffset, blur: blur))
+    func premiumTextReveal(_ isVisible: Bool, yOffset: CGFloat = 14, blur: CGFloat = 8, delay: Double = 0) -> some View {
+        modifier(PremiumTextRevealModifier(isVisible: isVisible, yOffset: yOffset, blur: blur, delay: delay))
     }
 
     @ViewBuilder
@@ -115,13 +115,15 @@ private struct PremiumTextRevealModifier: ViewModifier {
     let isVisible: Bool
     let yOffset: CGFloat
     let blur: CGFloat
+    var delay: Double = 0
 
     func body(content: Content) -> some View {
         content
             .opacity(isVisible ? 1 : 0)
             .offset(y: isVisible ? 0 : yOffset)
             .blur(radius: isVisible ? 0 : blur)
-            .animation(isVisible ? HumMotion.textReveal : HumMotion.textExit, value: isVisible)
+            // The delay staggers entrances only — exits stay immediate and snappy.
+            .animation(isVisible ? HumMotion.textReveal.delay(delay) : HumMotion.textExit, value: isVisible)
     }
 }
 

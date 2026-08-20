@@ -51,108 +51,124 @@ struct ResultsView: View {
     }
 
     var body: some View {
-        GeometryReader { proxy in
-            let contentX = proxy.safeAreaInsets.leading + contentInset
-            let contentWidth = max(
-                0,
-                proxy.size.width
-                - proxy.safeAreaInsets.leading
-                - proxy.safeAreaInsets.trailing
-                - contentInset * 2
-            )
+        ScrollView(showsIndicators: false) {
+            VStack(alignment: .leading, spacing: 16) {
+                VStack(alignment: .leading, spacing: 42) {
+                    title
+                        .premiumTextReveal(isTextVisible, yOffset: 16, blur: 8)
 
-            ZStack(alignment: .topLeading) {
-                Group {
-                    HumTheme.charcoal.ignoresSafeArea()
-                    resultsGlow
-
-                    VStack(spacing: 0) {
-                        ScrollView(showsIndicators: false) {
-                            VStack(alignment: .leading, spacing: 32) {
-                                title
-                                    .premiumTextReveal(isTextVisible, yOffset: 16, blur: 8)
-                                metaRow
-                                    .premiumTextReveal(isTextVisible, yOffset: 16, blur: 9)
-                                chordSection
-                                    .premiumTextReveal(isTextVisible, yOffset: 20, blur: 10)
-                                playbackCard
-                                    .premiumTextReveal(isTextVisible, yOffset: 22, blur: 10)
-                                actions
-                                    .premiumTextReveal(isTextVisible, yOffset: 22, blur: 10)
-                                Color.clear
-                                    .frame(height: 1)
-                                    .id(autoScrollBottomID)
-                            }
-                            .frame(width: contentWidth, alignment: .leading)
-                            .padding(.top, 110)
-                            .padding(.bottom, 32)
-                            .background(
-                                GeometryReader { scrollProxy in
-                                    Color.clear.preference(
-                                        key: ResultsScrollOffsetPreferenceKey.self,
-                                        value: scrollProxy.frame(in: .named("resultsScroll")).minY
-                                    )
-                                }
-                            )
-                            .clipped()
-                            .frame(maxWidth: .infinity)
-                        }
-                        .coordinateSpace(name: "resultsScroll")
-                        .simultaneousGesture(
-                            DragGesture(minimumDistance: 1).onChanged { _ in
-                                if isAutoScrolling {
-                                    stopAutoScroll()
-                                }
-                            }
-                        )
-                        .onPreferenceChange(ResultsScrollOffsetPreferenceKey.self) { value in
-                            scrollContentOffset = value
-                        }
-                        .background(ScrollViewAccessor { scrollView in
-                            resultsScrollView = scrollView
-                        })
-                        .clipped()
-                    }
-                    .frame(width: contentWidth, height: proxy.size.height)
-                    .offset(x: contentX)
-
-                    header
-                        .frame(width: contentWidth, height: 80)
-                        .offset(x: contentX)
+                    metaRow
+                        .premiumTextReveal(isTextVisible, yOffset: 16, blur: 9, delay: 0.1)
                 }
-                .blur(radius: isReactionStripVisible ? 8 : 0)
-                .animation(.easeInOut(duration: 0.22), value: isReactionStripVisible)
-
+                chordSection
+                    .premiumTextReveal(isTextVisible, yOffset: 20, blur: 10, delay: 0.2)
+                playbackCard
+                    .premiumTextReveal(isTextVisible, yOffset: 22, blur: 10, delay: 0.32)
+                actions
+                    .padding(.top, 24)
+                    .premiumTextReveal(isTextVisible, yOffset: 22, blur: 10, delay: 0.44)
+                Color.clear
+                    .frame(height: 1)
+                    .id(autoScrollBottomID)
+            }
+            .padding(.horizontal, contentInset)
+            .padding(.top, 32)
+            .padding(.bottom, 32)
+            .background(
+                GeometryReader { scrollProxy in
+                    Color.clear.preference(
+                        key: ResultsScrollOffsetPreferenceKey.self,
+                        value: scrollProxy.frame(in: .named("resultsScroll")).minY
+                    )
+                }
+            )
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .coordinateSpace(name: "resultsScroll")
+        .simultaneousGesture(
+            DragGesture(minimumDistance: 1).onChanged { _ in
+                if isAutoScrolling {
+                    stopAutoScroll()
+                }
+            }
+        )
+        .onPreferenceChange(ResultsScrollOffsetPreferenceKey.self) { value in
+            scrollContentOffset = value
+        }
+        .background(ScrollViewAccessor { scrollView in
+            resultsScrollView = scrollView
+        })
+        .background {
+            ZStack {
+                HumTheme.charcoal.ignoresSafeArea()
+                resultsGlow
+            }
+        }
+        .blur(radius: isInlineMenuVisible ? 8 : 0)
+        .animation(.easeInOut(duration: 0.22), value: isInlineMenuVisible)
+        .overlay {
+            if isInlineMenuVisible {
+                reactionDimmingLayer
+                    .transition(.opacity)
+                    .zIndex(1)
+            }
+        }
+        .overlay(alignment: .topTrailing) {
+            GeometryReader { proxy in
                 if isReactionStripVisible {
-                    reactionDimmingLayer
-                        .transition(.opacity)
-                        .zIndex(1)
+                    HStack(spacing: 8) {
+                        quickReactionStrip
+                            .frame(width: isReactionMenuExpanded ? min(proxy.size.width - 76, 420) : 272, alignment: .trailing)
 
-                    VStack {
-                        HStack {
-                            Spacer()
-                            HStack(spacing: 8) {
-                                quickReactionStrip
-                                    .frame(width: isReactionMenuExpanded ? min(contentWidth - 52, 420) : 272, alignment: .trailing)
-
-                                Button {
-                                    dismissReactionMenu()
-                                } label: {
-                                    reactionIconLabel
-                                }
-                                .buttonStyle(.plain)
-                            }
+                        Button {
+                            dismissReactionMenu()
+                        } label: {
+                            reactionIconLabel
                         }
-                        .padding(.top, 18)
-                        .padding(.trailing, proxy.safeAreaInsets.trailing + contentInset)
-
-                        Spacer()
+                        .buttonStyle(.plain)
                     }
-                    .frame(width: proxy.size.width, height: proxy.size.height)
+                    .padding(.top, 12)
+                    .padding(.trailing, proxy.safeAreaInsets.trailing + contentInset)
+                    .frame(width: proxy.size.width, height: proxy.size.height, alignment: .topTrailing)
                     .transition(.opacity.combined(with: .move(edge: .trailing)))
                     .zIndex(2)
                 }
+            }
         }
+        .navigationTitle("")
+        .navigationBarTitleDisplayMode(.inline)
+        .navigationBarBackButtonHidden(true)
+        .tint(Color.white.opacity(0.86))
+        .toolbar {
+            ToolbarItem(placement: .navigationBarLeading) {
+                Button {
+                    Haptics.light()
+                    switch mode {
+                    case .fresh(_, _, let onClose): leaveResults(onClose)
+                    case .saved(_, let onBack): leaveResults(onBack)
+                    }
+                } label: {
+                    Image(systemName: "chevron.left")
+                }
+                .accessibilityLabel("Back")
+            }
+
+            ToolbarItemGroup(placement: .navigationBarTrailing) {
+                if isAutoScrollSpeedMenuVisible {
+                    autoScrollSpeedMenu
+                        .transition(.opacity.combined(with: .move(edge: .trailing)))
+                }
+
+                autoScrollButton
+            }
+
+            if #available(iOS 26.0, *) {
+                ToolbarSpacer(.fixed, placement: .navigationBarTrailing)
+            }
+
+            ToolbarItem(placement: .navigationBarTrailing) {
+                reactionButton
+            }
         }
         .preferredColorScheme(.dark)
         .onAppear {
@@ -202,51 +218,23 @@ struct ResultsView: View {
         return "Recorded \(hum.createdAt.formatted(date: .abbreviated, time: .omitted))"
     }
 
-    // MARK: - Header
-
-    private var header: some View {
-        HStack(spacing: 12) {
-            Button {
-                Haptics.light()
-                switch mode {
-                case .fresh(_, _, let onClose): leaveResults(onClose)
-                case .saved(_, let onBack): leaveResults(onBack)
-                }
-            } label: {
-                darkMaterialIcon(systemName: "chevron.left", accessibilityLabel: "Back")
-            }
-            .buttonStyle(.plain)
-
-            Spacer()
-
-            if isAutoScrollSpeedMenuVisible {
-                autoScrollSpeedMenu
-                    .transition(.opacity.combined(with: .move(edge: .trailing)))
-            }
-
-            autoScrollButton
-            reactionButton
-        }
-        .animation(.spring(response: 0.28, dampingFraction: 0.82), value: isAutoScrollSpeedMenuVisible)
-    }
-
-   
-    
     // MARK: - Hum info
 
     private var title: some View {
-        VStack(alignment: .leading, spacing: 0) {
+        VStack(alignment: .leading, spacing: 4) {
             Text(currentHum.name)
-                .foregroundStyle(HumTheme.greetingGray)
+                .font(.system(size: 32, weight: .regular))
+                .kerning(-0.4)
+                .foregroundStyle(Color.white.opacity(0.45))
                 .lineLimit(1)
                 .truncationMode(.tail)
             Text(recordedHeadlineLabel)
-                .foregroundStyle(Color.white.opacity(0.9))
+                .font(.system(size: 32, weight: .regular))
+                .kerning(-0.4)
+                .foregroundStyle(Color.white.opacity(0.92))
                 .lineLimit(1)
                 .truncationMode(.tail)
         }
-        .font(.system(size: 32, weight: .regular))
-        .kerning(-0.5)
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
@@ -290,8 +278,9 @@ struct ResultsView: View {
     private var chordSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             LazyVGrid(
-                columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible())],
-                spacing: 12            ) {
+                columns: [GridItem(.flexible(), spacing: 14), GridItem(.flexible())],
+                spacing: 14
+            ) {
                 ForEach(Array(hum.chords.enumerated()), id: \.offset) { _, chord in
                     ChordCard(symbol: chord) {
                         Haptics.selection()
@@ -314,8 +303,8 @@ struct ResultsView: View {
                 } label: {
                     ZStack {
                         Circle()
-                            .fill(Color.black.opacity(player.isPlaying ? 0.28 : 0.18))
-                            .background(.ultraThinMaterial, in: Circle())
+                            .fill(.ultraThinMaterial)
+                            .overlay(Circle().fill(Color.black.opacity(player.isPlaying ? 0.28 : 0.18)))
                             .overlay(Circle().strokeBorder(Color.white.opacity(0.12), lineWidth: 1))
                             .frame(width: 42, height: 42)
                         Image(systemName: player.isPlaying ? "pause.fill" : "play.fill")
@@ -327,14 +316,14 @@ struct ResultsView: View {
                 .buttonStyle(.plain)
                 .accessibilityLabel(player.isPlaying ? "Pause" : "Play")
 
-                VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading, spacing: 8) {
                     Text(recordedDateLabel)
                         .font(.system(size: 12, weight: .medium))
                         .foregroundStyle(Color.white.opacity(0.5))
                         .lineLimit(1)
 
                     Text("\(player.currentTime.clockString) / \(max(player.duration, hum.duration).clockString)")
-                        .font(.system(size: 11, weight: .medium))
+                        .font(.system(size: 12, weight: .medium))
                         .monospacedDigit()
                         .foregroundStyle(Color.white.opacity(0.34))
                 }
@@ -363,7 +352,7 @@ struct ResultsView: View {
     private var actions: some View {
         switch mode {
         case .fresh(_, _, let onClose):
-            VStack(spacing: 14) {
+            VStack(spacing: 14, ) {
                 exportButton
                 deleteHumButton(action: onClose)
             }
@@ -373,18 +362,6 @@ struct ResultsView: View {
                 deleteHumButton(action: onDelete)
             }
         }
-    }
-
-    private func darkMaterialIcon(systemName: String, accessibilityLabel: String) -> some View {
-        Image(systemName: systemName)
-            .font(.system(size: 17, weight: .semibold))
-            .foregroundStyle(Color.white.opacity(0.86))
-            .frame(width: 44, height: 44)
-            .background(Color.black.opacity(0.3), in: Circle())
-            .background(.ultraThinMaterial, in: Circle())
-            .overlay(Circle().strokeBorder(Color.white.opacity(0.12), lineWidth: 1))
-            .contentShape(Circle())
-            .accessibilityLabel(accessibilityLabel)
     }
 
     private var autoScrollButton: some View {
@@ -416,33 +393,25 @@ struct ResultsView: View {
                 Haptics.light()
                 if isAutoScrolling {
                     stopAutoScroll()
+                } else if isAutoScrollSpeedMenuVisible {
+                    dismissAutoScrollSpeedMenu()
                 } else {
-                    startAutoScroll(speed: selectedAutoScrollSpeed)
+                    presentAutoScrollSpeedMenu()
                 }
             }
             .gesture(speedSelectionGesture)
     }
 
     private var autoScrollIconLabel: some View {
-        ZStack {
-            Circle()
-                .fill(Color.black.opacity(0.3))
-                .background(.ultraThinMaterial, in: Circle())
-                .overlay(Circle().strokeBorder(Color.white.opacity(0.12), lineWidth: 1))
-
+        Group {
             if isAutoScrolling {
                 Text(autoScrollSpeedLabel(selectedAutoScrollSpeed))
-                    .font(.system(size: 13, weight: .bold))
-                    .foregroundStyle(Color.white.opacity(0.9))
+                    .font(.system(size: 13, weight: .semibold))
                     .lineLimit(1)
             } else {
-                Image(systemName: "arrow.down")
-                    .font(.system(size: 17, weight: .semibold))
-                    .foregroundStyle(Color.white.opacity(0.86))
+                Image(systemName: "metronome")
             }
         }
-        .frame(width: 44, height: 44)
-        .contentShape(Circle())
         .accessibilityLabel(isAutoScrolling ? "Stop auto scroll" : "Auto scroll")
     }
 
@@ -472,15 +441,22 @@ struct ResultsView: View {
         let height: CGFloat = isActive ? 34 : 30
         let scale: CGFloat = isActive ? 1.06 : 1
 
-        return Text(autoScrollSpeedLabel(speed))
-            .font(.system(size: fontSize, weight: .semibold))
-            .foregroundStyle(Color.white.opacity(foregroundOpacity))
-            .frame(width: width, height: height)
-            .background(Capsule().fill(Color.white.opacity(fillOpacity)))
-            .overlay(Capsule().strokeBorder(Color.white.opacity(fillOpacity), lineWidth: 1))
-            .background(autoScrollSpeedFrameReader(for: speed))
-            .scaleEffect(scale)
-            .animation(.spring(response: 0.2, dampingFraction: 0.78), value: isActive)
+        return Button {
+            highlightedAutoScrollSpeed = speed
+            applyAutoScrollSpeedSelection()
+        } label: {
+            Text(autoScrollSpeedLabel(speed))
+                .font(.system(size: fontSize, weight: .semibold))
+                .foregroundStyle(Color.white.opacity(foregroundOpacity))
+                .frame(width: width, height: height)
+                .background(Capsule().fill(Color.white.opacity(fillOpacity)))
+                .overlay(Capsule().strokeBorder(Color.white.opacity(fillOpacity), lineWidth: 1))
+                .background(autoScrollSpeedFrameReader(for: speed))
+                .scaleEffect(scale)
+                .animation(.spring(response: 0.2, dampingFraction: 0.78), value: isActive)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Scroll at \(autoScrollSpeedLabel(speed))")
     }
 
     private func autoScrollSpeedFrameReader(for speed: Double) -> some View {
@@ -498,6 +474,13 @@ struct ResultsView: View {
         Haptics.selection()
         withAnimation(.spring(response: 0.28, dampingFraction: 0.82)) {
             isAutoScrollSpeedMenuVisible = true
+        }
+    }
+
+    private func dismissAutoScrollSpeedMenu() {
+        highlightedAutoScrollSpeed = nil
+        withAnimation(.easeInOut(duration: 0.16)) {
+            isAutoScrollSpeedMenuVisible = false
         }
     }
 
@@ -608,23 +591,14 @@ struct ResultsView: View {
     }
 
     private var reactionIconLabel: some View {
-        ZStack {
-            Circle()
-                .fill(Color.black.opacity(0.3))
-                .background(.ultraThinMaterial, in: Circle())
-                .overlay(Circle().strokeBorder(Color.white.opacity(0.12), lineWidth: 1))
-
+        Group {
             if let selectedReaction {
                 Text(selectedReaction)
                     .font(.system(size: 18))
             } else {
                 Image(systemName: "face.smiling")
-                    .font(.system(size: 17, weight: .semibold))
-                    .foregroundStyle(Color.white.opacity(0.86))
             }
         }
-        .frame(width: 44, height: 44)
-        .contentShape(Circle())
         .accessibilityLabel(selectedReaction == nil ? "Add reaction" : "Change reaction")
     }
 
@@ -709,12 +683,22 @@ struct ResultsView: View {
         }
     }
 
+    /// Both inline menus (emoji strip and speed picker) share the same dimming treatment.
+    private var isInlineMenuVisible: Bool {
+        isReactionStripVisible || isAutoScrollSpeedMenuVisible
+    }
+
     private var reactionDimmingLayer: some View {
         Color.black.opacity(0.28)
             .background(.ultraThinMaterial)
             .ignoresSafeArea()
             .contentShape(Rectangle())
-            .onTapGesture(perform: dismissReactionMenu)
+            .onTapGesture(perform: dismissInlineMenus)
+    }
+
+    private func dismissInlineMenus() {
+        if isReactionStripVisible { dismissReactionMenu() }
+        if isAutoScrollSpeedMenuVisible { dismissAutoScrollSpeedMenu() }
     }
 
     @ViewBuilder
@@ -919,14 +903,14 @@ private extension View {
     func resultCardChrome(isPressed: Bool) -> some View {
         background(
             ZStack {
-                RoundedRectangle(cornerRadius: 24, style: .continuous)
+                RoundedRectangle(cornerRadius: 28, style: .continuous)
                     .fill(Color.white.opacity(isPressed ? 0.045 : 0.07))
-                RoundedRectangle(cornerRadius: 24, style: .continuous)
+                RoundedRectangle(cornerRadius: 28, style: .continuous)
                     .fill(Color.black.opacity(isPressed ? 0.24 : 0))
             }
         )
         .overlay(
-            RoundedRectangle(cornerRadius: 24, style: .continuous)
+            RoundedRectangle(cornerRadius: 28, style: .continuous)
                 .strokeBorder(Color.white.opacity(isPressed ? 0.08 : 0.09), lineWidth: 1)
         )
     }
@@ -938,13 +922,13 @@ struct ChordCard: View {
 
     var body: some View {
         Button(action: onTap) {
-            VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: 10) {
                 Text(symbol)
-                    .font(.system(size: 36, weight: .light))
+                    .font(.system(size: 34, weight: .light))
                     .kerning(0.37)
                     .foregroundStyle(.white)
 
-                HStack(spacing: 4) {
+                HStack(spacing: 6) {
                     ForEach(Array(["↓", "↑", "↓", "↑"].enumerated()), id: \.offset) { _, arrow in
                         Text(arrow)
                     }
@@ -1051,27 +1035,29 @@ private struct MetaChip: View {
         }
         .padding(.horizontal, 12)
         .frame(height: 34)
-        .background(Color.white.opacity(0.005), in: Capsule())
-        .overlay(Capsule().strokeBorder(Color.white.opacity(0.1), lineWidth: 1))
+        .background(Color.white.opacity(0.04), in: Capsule())
+        .overlay(Capsule().strokeBorder(Color.white.opacity(0.08), lineWidth: 1))
     }
 }
 
 #Preview {
-    ResultsView(
-        hum: Hum(
-            id: UUID(),
-            name: "Hook Idea",
-            createdAt: .now,
-            duration: 15,
-            key: "Am",
-            bpm: 96,
-            timeSignature: "4/4",
-            chords: ["Am", "F", "C", "G", "Em", "Dm"],
-            notes: [],
-            audioFileName: ""
-        ),
-        audioURL: URL(fileURLWithPath: "/dev/null"),
-        mode: .fresh(onSave: { _ in }, onRecordAgain: {}, onClose: {})
-    )
-    .environmentObject(HumStore())
+    NavigationStack {
+        ResultsView(
+            hum: Hum(
+                id: UUID(),
+                name: "Hook Idea",
+                createdAt: .now,
+                duration: 15,
+                key: "Am",
+                bpm: 96,
+                timeSignature: "4/4",
+                chords: ["Am", "F", "C", "G", "Em", "Dm"],
+                notes: [],
+                audioFileName: ""
+            ),
+            audioURL: URL(fileURLWithPath: "/dev/null"),
+            mode: .fresh(onSave: { _ in }, onRecordAgain: {}, onClose: {})
+        )
+        .environmentObject(HumStore())
+    }
 }

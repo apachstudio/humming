@@ -4,7 +4,9 @@ import SwiftUI
 struct ListeningView: View {
     @ObservedObject var recorder: AudioRecorder
     var isFinishing = false
+    var isDismissing = false
     var onStop: () -> Void
+    var onCancel: () -> Void
 
     @State private var introBloom = false
     @State private var timerVisible = false
@@ -25,32 +27,23 @@ struct ListeningView: View {
                     tuning: haloTuning
                 )
 
-                Text("Keep vibing")
-                    .font(.system(size: 14, weight: .medium))
-                    .foregroundStyle(Color.white.opacity(0.26))
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-                    .padding(.top, 32)
-                    .opacity(textVisible ? 1 : 0)
-                    .offset(y: textVisible ? 0 : -18)
-                    .blur(radius: textVisible ? 0 : 5)
-                    .animation(HumMotion.recordingTextIn, value: timerVisible)
-                    .animation(HumMotion.textExit, value: isFinishing)
-
                 Text(recordingTimeString)
                     .font(.system(size: 24, weight: .light).monospacedDigit())
                     .foregroundStyle(Color.white.opacity(0.36))
                     .contentTransition(.opacity)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+                    .ignoresSafeArea()
                     .opacity(textVisible ? 1 : 0)
                     .offset(y: textVisible ? 0 : -18)
                     .blur(radius: textVisible ? 0 : 5)
                     .animation(HumMotion.recordingTextIn, value: timerVisible)
                     .animation(HumMotion.textExit, value: isFinishing)
+                    .animation(HumMotion.textExit, value: isDismissing)
 
                 VStack(spacing: 0) {
                     Spacer()
 
-                    Text("Tap to stop")
+                    Text("Tap to finish")
                         .font(.system(size: 12, weight: .medium))
                         .kerning(-0.12)
                         .foregroundStyle(Color.black.opacity(0.4))
@@ -60,15 +53,45 @@ struct ListeningView: View {
                         .blur(radius: textVisible ? 0 : 5)
                         .animation(HumMotion.stopHintIn, value: timerVisible)
                         .animation(HumMotion.textExit, value: isFinishing)
+                        .animation(HumMotion.textExit, value: isDismissing)
                 }
             }
         }
         .preferredColorScheme(.dark)
+        .toolbar {
+            ToolbarItem(placement: .principal) {
+                Text("Keep vibing")
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundStyle(Color.white.opacity(0.26))
+                    .opacity(textVisible ? 1 : 0)
+                    .offset(y: textVisible ? 0 : -18)
+                    .blur(radius: textVisible ? 0 : 5)
+                    .animation(HumMotion.recordingTextIn, value: timerVisible)
+                    .animation(HumMotion.textExit, value: isFinishing)
+                    .animation(HumMotion.textExit, value: isDismissing)
+            }
+
+            if #available(iOS 26.0, *) {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    dismissButton
+                }
+                .sharedBackgroundVisibility(.hidden)
+            } else {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    dismissButton
+                }
+            }
+        }
+        .toolbarBackground(.hidden, for: .navigationBar)
+        .navigationBarTitleDisplayMode(.inline)
+        .navigationTitle("")
         .contentShape(Rectangle())
         .onTapGesture {
+            guard !isDismissing else { return }
             Haptics.medium()
             onStop()
         }
+        .simultaneousGesture(dismissSwipeGesture)
         .onAppear {
             introBloom = false
             timerVisible = false
@@ -84,6 +107,13 @@ struct ListeningView: View {
                 onStop()
             }
         }
+        .onChange(of: isDismissing) { _, dismissing in
+            guard dismissing else { return }
+            // The halo sinks back below the horizon while the texts blur away.
+            withAnimation(.spring(response: 0.85, dampingFraction: 0.92)) {
+                introBloom = false
+            }
+        }
     }
 
     private var recordingTimeString: String {
@@ -91,9 +121,39 @@ struct ListeningView: View {
     }
 
     private var textVisible: Bool {
-        timerVisible && !isFinishing
+        timerVisible && !isFinishing && !isDismissing
     }
 
+    /// Bare chevron dismiss affordance — no glass background, just the icon.
+    private var dismissButton: some View {
+        Button {
+            Haptics.light()
+            onCancel()
+        } label: {
+            Image(systemName: "chevron.down")
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundStyle(Color.white.opacity(0.46))
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Dismiss recording")
+        .opacity(textVisible ? 1 : 0)
+        .animation(HumMotion.recordingTextIn, value: timerVisible)
+        .animation(HumMotion.textExit, value: isFinishing)
+        .animation(HumMotion.textExit, value: isDismissing)
+    }
+
+    private var dismissSwipeGesture: some Gesture {
+        DragGesture(minimumDistance: 24)
+            .onEnded { value in
+                guard !isFinishing, !isDismissing else { return }
+                let translation = value.translation
+                let isDownwardDismiss = translation.height > 90 && abs(translation.width) < translation.height * 0.8
+                guard isDownwardDismiss else { return }
+
+                Haptics.light()
+                onCancel()
+            }
+    }
 
     @ViewBuilder
     private func recordingHalo(
@@ -254,8 +314,11 @@ private struct MelodyHaloWave: Shape {
 }
 
 #Preview {
-    ListeningView(
-        recorder: AudioRecorder(),
-        onStop: {}
-    )
+    NavigationStack {
+        ListeningView(
+            recorder: AudioRecorder(),
+            onStop: {},
+            onCancel: {}
+        )
+    }
 }

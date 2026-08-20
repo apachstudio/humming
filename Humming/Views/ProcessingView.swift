@@ -17,7 +17,7 @@ struct ProcessingView: View {
                     screenSize: proxy.size
                 )
 
-                Text("Processing hum...")
+                Text("Processing...")
                     .font(.system(size: 14, weight: .medium))
                     .foregroundStyle(Color.white.opacity(0.36))
                     .multilineTextAlignment(.center)

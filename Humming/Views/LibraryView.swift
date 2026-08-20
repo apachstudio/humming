@@ -40,141 +40,90 @@ struct LibraryView: View {
     }
 
     var body: some View {
-        ZStack {
-            Group {
-                Color.white.ignoresSafeArea()
-                libraryBackdrop
-
-                ZStack(alignment: .top) {
-                    VStack(spacing: 0) {
-                        header
-                            .padding(.horizontal, 24)
-                            .frame(height: 80)
-
-                        humList
-                            .premiumTextReveal(isTextVisible, yOffset: 18, blur: 9)
-                    }
-
-                    collapsingTitle
-                        .allowsHitTesting(false)
-                }
-            }
+        humList
+            .premiumTextReveal(isTextVisible, yOffset: 18, blur: 9)
+            .background(Color.white.ignoresSafeArea())
             .blur(radius: activeReactionHumID == nil ? 0 : 6)
             .animation(.easeInOut(duration: 0.2), value: activeReactionHumID)
-
-            if activeReactionHumID != nil {
-                reactionDimmingLayer
-                    .transition(.opacity)
-                    .zIndex(1)
+            .overlay {
+                if activeReactionHumID != nil {
+                    reactionDimmingLayer
+                        .transition(.opacity)
+                        .zIndex(1)
+                }
             }
-        }
-        .overlayPreferenceValue(ReactionAnchorPreferenceKey.self) { anchors in
-            reactionMenuOverlay(anchors: anchors)
-        }
-        .navigationDestination(item: $selectedHum) { hum in
-            ResultsView(
-                hum: hum,
-                audioURL: store.audioURL(for: hum),
-                mode: .saved(
-                    onDelete: {
-                        store.delete(hum)
-                        returnFromHum()
-                    },
-                    onBack: returnFromHum
+            .overlayPreferenceValue(ReactionAnchorPreferenceKey.self) { anchors in
+                reactionMenuOverlay(anchors: anchors)
+            }
+            .navigationTitle("")
+            .navigationBarTitleDisplayMode(.inline)
+            .tint(HumTheme.ink)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button {
+                        Haptics.light()
+                        closeLibrary()
+                    } label: {
+                        Image(systemName: "chevron.left")
+                    }
+                    .accessibilityLabel("Back")
+                }
+
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button {
+                        Haptics.light()
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            isSearchVisible.toggle()
+                        }
+                    } label: {
+                        Image(systemName: "magnifyingglass")
+                    }
+                    .accessibilityLabel("Search")
+                }
+
+                if #available(iOS 26.0, *) {
+                    ToolbarSpacer(.fixed, placement: .navigationBarTrailing)
+                }
+
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Menu {
+                        Button("All Hums") {
+                            Haptics.selection()
+                            filter = .all
+                        }
+                        Button("With Reaction") {
+                            Haptics.selection()
+                            filter = .reacted
+                        }
+                        Button("No Reaction") {
+                            Haptics.selection()
+                            filter = .unreacted
+                        }
+                    } label: {
+                        Image(systemName: "line.3.horizontal.decrease")
+                    }
+                    .accessibilityLabel("Filter")
+                }
+            }
+            .navigationDestination(item: $selectedHum) { hum in
+                ResultsView(
+                    hum: hum,
+                    audioURL: store.audioURL(for: hum),
+                    mode: .saved(
+                        onDelete: {
+                            store.delete(hum)
+                            returnFromHum()
+                        },
+                        onBack: returnFromHum
+                    )
                 )
-            )
-            .humNavigationZoomDestination(sourceID: hum.id, in: navigationNamespace)
-            .navigationBarBackButtonHidden(true)
-            .toolbar(.hidden, for: .navigationBar)
-        }
-        .preferredColorScheme(.light)
-        .onAppear(perform: runTextEntrance)
-    }
-
-    private var libraryBackdrop: some View {
-        Color.white
-            .ignoresSafeArea()
-    }
-
-    private var header: some View {
-        HStack {
-            Button {
-                Haptics.light()
-                closeLibrary()
-            } label: {
-                topNavAssetIconLabel(imageName: "back", accessibilityLabel: "Back", width: 8, height: 24)
+                .humNavigationZoomDestination(sourceID: hum.id, in: navigationNamespace)
+                .navigationBarBackButtonHidden(true)
             }
-            .buttonStyle(.plain)
-
-            Spacer()
-
-            Button {
-                Haptics.light()
-                withAnimation(.easeInOut(duration: 0.2)) {
-                    isSearchVisible.toggle()
-                }
-            } label: {
-                topNavAssetIconLabel(imageName: "search", accessibilityLabel: "Search", width: 18, height: 26)
-            }
-            .buttonStyle(.plain)
-
-            Menu {
-                Button("All Hums") {
-                    Haptics.selection()
-                    filter = .all
-                }
-                Button("With Reaction") {
-                    Haptics.selection()
-                    filter = .reacted
-                }
-                Button("No Reaction") {
-                    Haptics.selection()
-                    filter = .unreacted
-                }
-            } label: {
-                topNavAssetIconLabel(imageName: "filter", accessibilityLabel: "Filter", width: 18, height: 18)
-            }
-        }
+            .preferredColorScheme(.light)
+            .onAppear(perform: runTextEntrance)
     }
 
-    private var title: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            Text("Your hums,")
-                .foregroundStyle(HumTheme.greetingGray)
-            Text("ready to play")
-                .foregroundStyle(HumTheme.ink)
-        }
-        .font(.system(size: 32, weight: .regular))
-        .kerning(-0.48)
-        .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
-    private var collapsingTitle: some View {
-        GeometryReader { proxy in
-            let progress = titleCollapseProgress
-            let largeTitleY = 112 - 54 * progress
-            let largeTitleOpacity = Double(1 - min(progress * 1.45, 1))
-            let inlineTitleOpacity = Double(max((progress - 0.52) / 0.48, 0))
-
-            ZStack(alignment: .top) {
-                title
-                    .padding(.horizontal, 24)
-                    .offset(y: largeTitleY)
-                    .opacity(largeTitleOpacity)
-
-                Text("Your hums, ready to play")
-                    .font(.system(size: 17, weight: .semibold))
-                    .foregroundStyle(HumTheme.ink.opacity(0.82))
-                    .lineLimit(1)
-                    .truncationMode(.tail)
-                    .frame(width: proxy.size.width)
-                    .padding(.horizontal, 92)
-                    .offset(y: 30)
-                    .opacity(inlineTitleOpacity)
-            }
-            .animation(.easeOut(duration: 0.12), value: progress)
-        }
-    }
 
     private var searchBar: some View {
         HStack(spacing: 10) {
@@ -346,59 +295,12 @@ struct LibraryView: View {
         .shadow(color: .black.opacity(0.12), radius: 18, y: 10)
     }
 
-    @ViewBuilder
-    private func topNavIconLabel(systemName: String, accessibilityLabel: String) -> some View {
-        let label = Image(systemName: systemName)
-            .font(.system(size: 17, weight: .semibold))
-            .foregroundStyle(HumTheme.ink)
-            .frame(width: 44, height: 44)
-            .contentShape(Circle())
-            .accessibilityLabel(accessibilityLabel)
-
-        if #available(iOS 26.0, *) {
-            label.glassEffect(.regular.interactive(), in: Circle())
-        } else {
-            label
-                .background(.ultraThinMaterial, in: Circle())
-                .overlay(Circle().strokeBorder(HumTheme.ink.opacity(0.9), lineWidth: 1))
-        }
-    }
-
-    @ViewBuilder
-    private func topNavAssetIconLabel(imageName: String, accessibilityLabel: String, width: CGFloat, height: CGFloat) -> some View {
-        let label = Image(imageName)
-            .renderingMode(.template)
-            .resizable()
-            .scaledToFit()
-            .foregroundStyle(HumTheme.ink)
-            .frame(width: width, height: height)
-            .frame(width: 44, height: 44)
-            .contentShape(Circle())
-            .accessibilityLabel(accessibilityLabel)
-
-        if #available(iOS 26.0, *) {
-            label.glassEffect(.regular.interactive(), in: Circle())
-        } else {
-            label
-                .background(.ultraThinMaterial, in: Circle())
-                .overlay(Circle().strokeBorder(HumTheme.ink.opacity(0.9), lineWidth: 1))
-        }
-    }
 
     private var humList: some View {
         List {
-            Color.clear
-                .frame(height: 104)
-                .background(
-                    GeometryReader { proxy in
-                        Color.clear.preference(
-                            key: LibraryScrollOffsetPreferenceKey.self,
-                            value: proxy.frame(in: .named("libraryScroll")).minY
-                        )
-                    }
-                )
+            libraryHeader
                 .listRowSeparator(.hidden)
-                .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
+                .listRowInsets(EdgeInsets(top: 12, leading: 24, bottom: 24, trailing: 24))
                 .listRowBackground(Color.clear)
 
             if isSearchVisible {
@@ -427,7 +329,7 @@ struct LibraryView: View {
                     )
                     .humMatchedTransitionSource(id: hum.id, in: navigationNamespace)
                     .listRowSeparator(.hidden)
-                    .listRowInsets(EdgeInsets(top: 6, leading: 24, bottom: 6, trailing: 24))
+                    .listRowInsets(EdgeInsets(top: 100, leading: 24, bottom: 26, trailing: 24))
                     .listRowBackground(Color.clear)
                     .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                         Button(role: .destructive) {
@@ -440,12 +342,22 @@ struct LibraryView: View {
                 }
             }
         }
-        .coordinateSpace(name: "libraryScroll")
-        .onPreferenceChange(LibraryScrollOffsetPreferenceKey.self) { value in
-            scrollContentOffset = value
-        }
         .listStyle(.plain)
         .scrollContentBackground(.hidden)
+    }
+
+    private var libraryHeader: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text("Your hums,")
+                .foregroundStyle(HumTheme.grayText2)
+            Text("ready to play")
+                .fontWeight(.regular)
+                .foregroundStyle(HumTheme.ink)
+        }
+        .font(.system(size: 32, weight: .regular))
+        .kerning(-0.4)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.top, 32)
     }
 
     private var emptyState: some View {
@@ -547,13 +459,13 @@ struct HumRow: View {
             Button(action: onOpen) {
                 VStack(alignment: .leading, spacing: 8) {
                     Text(hum.name)
-                        .font(.system(size: 24, weight: .medium))
-                        .foregroundStyle(HumTheme.ink.opacity(0.76))
-                        .kerning(-0.28)
+                        .font(.system(size: 24, weight: .regular))
+                        .foregroundStyle(HumTheme.ink.opacity(0.9))
+                        .kerning(-0.4)
                         .lineLimit(1)
 
                     Text(chordSummary)
-                        .font(.system(size: 16, weight: .medium))
+                        .font(.system(size: 18, weight: .medium))
                         .foregroundStyle(HumTheme.grayText)
                         .lineLimit(1)
                 }
@@ -571,9 +483,6 @@ struct HumRow: View {
             }
             .accessibilityLabel(hum.emojiReaction == nil ? "Add reaction" : "Change reaction")
         }
-   
-        .padding(.top, 100)
-
     }
 
     private var chordSummary: String {
@@ -603,7 +512,7 @@ private struct ReactionIcon: View {
         ZStack {
             Circle()
                 .fill(Color.white.opacity(0.72))
-                .overlay(Circle().strokeBorder(Color.black.opacity(0.07), lineWidth: 1.5))
+                .overlay(Circle().strokeBorder(Color.black.opacity(0.00), lineWidth: 1.5))
 
             if let reaction {
                 Text(reaction)
@@ -618,6 +527,7 @@ private struct ReactionIcon: View {
         }
         .frame(width: 32, height: 32)
         .contentShape(Circle())
+        
     }
 }
 

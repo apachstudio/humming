@@ -21,12 +21,14 @@ struct HomeView: View {
     @State private var isRecordTransitioning = false
     @State private var isHeadlineVisible = false
     @State private var isFinishingRecording = false
+    @State private var isDismissingRecording = false
     @State private var startRecordingTask: Task<Void, Never>?
 
     private let recordButtonSize: CGFloat = 156
 
     var body: some View {
-        GeometryReader { proxy in
+        NavigationStack {
+            GeometryReader { proxy in
             ZStack {
                 switch phase {
                 case .idle:
@@ -36,7 +38,9 @@ struct HomeView: View {
                     ListeningView(
                         recorder: recorder,
                         isFinishing: isFinishingRecording,
-                        onStop: finishRecording
+                        isDismissing: isDismissingRecording,
+                        onStop: finishRecording,
+                        onCancel: cancelRecording
                     )
                     .transition(.identity)
                 case .processing:
@@ -71,14 +75,37 @@ struct HomeView: View {
                     captureButton(in: proxy.size)
                 }
 
-                if showLibrary {
-                    LibraryView(onClose: dismissLibrary)
-                        .transition(.premiumLibraryScaleReveal)
-                        .zIndex(10)
+            }
+            }
+            .toolbar {
+                if phase == .idle && !isRecordTransitioning {
+                    ToolbarItem(placement: .navigationBarTrailing) {
+                        Button {
+                            presentLibrary()
+                        } label: {
+                            Image("library-icon")
+                                .renderingMode(.template)
+                                .resizable()
+                                .scaledToFit()
+                                .frame(width: 19, height: 19)
+                        }
+                        .accessibilityLabel("Your hums")
+                    }
                 }
             }
+            .tint(Color.white.opacity(0.86))
+            .toolbar(hidesNavigationBar ? .hidden : .visible, for: .navigationBar)
+            .toolbarBackground(.hidden, for: .navigationBar)
+            .navigationBarTitleDisplayMode(.inline)
+            .navigationTitle("")
         }
         .animation(HumMotion.phaseChange, value: phase)
+        .fullScreenCover(isPresented: $showLibrary) {
+            NavigationStack {
+                LibraryView(onClose: dismissLibrary)
+            }
+            .environmentObject(store)
+        }
         .alert("Microphone access needed", isPresented: $showPermissionAlert) {
             Button("OK", role: .cancel) {
                 Haptics.light()
@@ -95,16 +122,6 @@ struct HomeView: View {
             HumTheme.charcoal.ignoresSafeArea()
 
             VStack(spacing: 0) {
-                HStack {
-                    Spacer()
-                    libraryNavButton
-                }
-                .padding(.horizontal, 24)
-                .padding(.top, 12)
-                .opacity(isRecordTransitioning ? 0 : 1)
-                .offset(y: isRecordTransitioning ? -12 : 0)
-                .animation(HumMotion.libraryExit, value: isRecordTransitioning)
-
                 greeting
                     .padding(.top, 56)
                     .opacity(headlineOpacity)
@@ -140,30 +157,6 @@ struct HomeView: View {
         .task { await runRecordButtonBreathing() }
     }
 
-    private var libraryNavButton: some View {
-        Button {
-            presentLibrary()
-        } label: {
-            let label = Image("library-icon")
-                .renderingMode(.template)
-                .resizable()
-                .scaledToFit()
-                .foregroundStyle(Color.white.opacity(0.86))
-                .frame(width: 19, height: 19)
-                .frame(width: 44, height: 44)
-                .contentShape(Circle())
-                .accessibilityLabel("Your hums")
-
-            if #available(iOS 26.0, *) {
-                label.glassEffect(.regular.interactive(), in: Circle())
-            } else {
-                label
-                    .background(.ultraThinMaterial, in: Circle())
-                    .overlay(Circle().strokeBorder(Color.white.opacity(0.12), lineWidth: 1))
-            }
-        }
-        .buttonStyle(.plain)
-    }
 
     /// Playful greeting from the brand UI COMMS guidelines.
     private var greeting: some View {
@@ -188,6 +181,10 @@ struct HomeView: View {
         return false
     }
 
+    private var hidesNavigationBar: Bool {
+        phase == .processing
+    }
+
     @ViewBuilder
     private func captureButton(in screenSize: CGSize) -> some View {
         Button {
@@ -207,6 +204,14 @@ struct HomeView: View {
                     .scaledToFit()
                     .foregroundStyle(HumTheme.glyphInk.opacity(0.54))
                     .frame(width: recordButtonSize * 0.36, height: recordButtonSize * 0.31)
+            }
+            .overlay {
+                // Subtle breathing pulse: the disc gently darkens and returns to its
+                // default tone instead of scaling.
+                Circle()
+                    .fill(Color.black.opacity(isRecordButtonBreathing ? 0.14 : 0))
+                    .padding(1)
+                    .animation(.spring(response: 1.9, dampingFraction: 0.88), value: isRecordButtonBreathing)
             }
             .frame(width: recordButtonSize, height: recordButtonSize)
             .contentShape(Circle())
@@ -237,8 +242,7 @@ struct HomeView: View {
     }
 
     private var recordButtonScale: CGFloat {
-        if isRecordButtonPressed { return 0.91 }
-        return isRecordButtonBreathing ? 1.035 : 0.99
+        isRecordButtonPressed ? 0.91 : 1
     }
 
     private var recordButtonBloomOpacity: Double {
@@ -308,15 +312,11 @@ struct HomeView: View {
     private func presentLibrary() {
         guard !showLibrary else { return }
         Haptics.selection()
-        withAnimation(HumMotion.librarySlide) {
-            showLibrary = true
-        }
+        showLibrary = true
     }
 
     private func dismissLibrary() {
-        withAnimation(HumMotion.librarySlide) {
-            showLibrary = false
-        }
+        showLibrary = false
     }
 
     private func beginRecordingTransition(playsHaptic: Bool) {
@@ -376,7 +376,7 @@ struct HomeView: View {
 
 
     private func finishRecording() {
-        guard phase == .recording, !isFinishingRecording else { return }
+        guard phase == .recording, !isFinishingRecording, !isDismissingRecording else { return }
         isFinishingRecording = true
         startRecordingTask?.cancel()
 
@@ -399,7 +399,7 @@ struct HomeView: View {
             let analysis = ChordEngine.analyze(notes: notes, duration: result.duration)
 
             // Hold the processing state long enough for the reveal to feel deliberate.
-            try? await Task.sleep(for: .seconds(0.9))
+            try? await Task.sleep(for: .seconds(1.8))
 
             await MainActor.run {
                 let hum = Hum(
@@ -418,6 +418,39 @@ struct HomeView: View {
                 isFinishingRecording = false
                 withAnimation(.easeInOut(duration: 1.05)) {
                     phase = .results(hum)
+                }
+            }
+        }
+    }
+
+    private func cancelRecording() {
+        guard phase == .recording, !isFinishingRecording, !isDismissingRecording else { return }
+        startRecordingTask?.cancel()
+
+        // Stage 1: the recording screen dissolves — texts blur away and the halo
+        // sinks back below the horizon (ListeningView reacts to isDismissing).
+        isDismissingRecording = true
+        recorder.cancel()
+        freshAudioURL = nil
+
+        Task {
+            try? await Task.sleep(for: .milliseconds(560))
+            await MainActor.run {
+                // Stage 2: swap to the (identically charcoal) idle screen while the
+                // record button is still parked below the screen edge.
+                withAnimation(HumMotion.phaseChange) {
+                    phase = .idle
+                }
+                isFinishingRecording = false
+                isDismissingRecording = false
+            }
+
+            // Stage 3: a beat later, release the button so it rises back up while
+            // the headline fades in from the top and the hint from the bottom.
+            try? await Task.sleep(for: .milliseconds(90))
+            await MainActor.run {
+                withAnimation(HumMotion.buttonDescend) {
+                    isRecordTransitioning = false
                 }
             }
         }
