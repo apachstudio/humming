@@ -10,6 +10,7 @@ struct HomeView: View {
     }
 
     @EnvironmentObject private var store: HumStore
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @StateObject private var recorder = AudioRecorder()
 
     @State private var phase: Phase = .idle
@@ -23,8 +24,16 @@ struct HomeView: View {
     @State private var isFinishingRecording = false
     @State private var isDismissingRecording = false
     @State private var startRecordingTask: Task<Void, Never>?
+    @State private var isPreparingLibraryPresentation = false
+    @State private var libraryPresentationTask: Task<Void, Never>?
 
     private let recordButtonSize: CGFloat = 156
+
+    private enum BreathingMotion {
+        static let travel = Animation.easeInOut(duration: 1.6)
+        static let travelDuration: Duration = .milliseconds(1600)
+        static let topHold: Duration = .milliseconds(500)
+    }
 
     var body: some View {
         NavigationStack {
@@ -40,6 +49,7 @@ struct HomeView: View {
                         isFinishing: isFinishingRecording,
                         isDismissing: isDismissingRecording,
                         onStop: finishRecording,
+                        onRestart: restartRecording,
                         onCancel: cancelRecording
                     )
                     .transition(.identity)
@@ -65,7 +75,8 @@ struct HomeView: View {
                                     discardFreshRecording()
                                     backToIdle()
                                 }
-                            )
+                            ),
+                            entrySource: .processing
                         )
                         .transition(.premiumResultsReveal)
                     }
@@ -78,7 +89,7 @@ struct HomeView: View {
             }
             }
             .toolbar {
-                if phase == .idle && !isRecordTransitioning {
+                if phase == .idle && !isRecordTransitioning && !isPreparingLibraryPresentation && !showLibrary {
                     ToolbarItem(placement: .navigationBarTrailing) {
                         Button {
                             presentLibrary()
@@ -98,14 +109,12 @@ struct HomeView: View {
             .toolbarBackground(.hidden, for: .navigationBar)
             .navigationBarTitleDisplayMode(.inline)
             .navigationTitle("")
+            .navigationDestination(isPresented: $showLibrary) {
+                LibraryView(onClose: dismissLibrary)
+                    .environmentObject(store)
+            }
         }
         .animation(HumMotion.phaseChange, value: phase)
-        .fullScreenCover(isPresented: $showLibrary) {
-            NavigationStack {
-                LibraryView(onClose: dismissLibrary)
-            }
-            .environmentObject(store)
-        }
         .alert("Microphone access needed", isPresented: $showPermissionAlert) {
             Button("OK", role: .cancel) {
                 Haptics.light()
@@ -138,14 +147,22 @@ struct HomeView: View {
 
                 Spacer()
 
-                Text("Tap and start humming")
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(HumTheme.labelFaint)
-                    .padding(.bottom, 20)
-                    .opacity(isRecordTransitioning ? 0 : 1)
-                    .offset(y: isRecordTransitioning ? 40 : 0)
-                    .blur(radius: isRecordTransitioning ? 5 : 0)
-                    .animation(HumMotion.bottomHintExit, value: isRecordTransitioning)
+                Button {
+                    beginRecordingTransition(playsHaptic: true)
+                } label: {
+                    Text("Tap and start humming")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(HumTheme.labelFaint)
+                        .frame(minWidth: 160, minHeight: 44)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Start recording")
+                .padding(.bottom, 8)
+                .opacity(isRecordTransitioning ? 0 : 1)
+                .offset(y: isRecordTransitioning ? 40 : 0)
+                .blur(radius: isRecordTransitioning ? 5 : 0)
+                .animation(reduceMotion ? nil : HumMotion.bottomHintExit, value: isRecordTransitioning)
             }
         }
         .preferredColorScheme(.dark)
@@ -166,7 +183,7 @@ struct HomeView: View {
             Text("Back for another hit?")
                 .foregroundStyle(.white)
         }
-        .font(.system(size: 32, weight: .medium))
+        .font(.system(size: 32, weight: .regular))
         .kerning(-0.48)
         .multilineTextAlignment(.center)
         .padding(32)
@@ -202,27 +219,47 @@ struct HomeView: View {
                     .resizable()
                     .renderingMode(.template)
                     .scaledToFit()
-                    .foregroundStyle(HumTheme.glyphInk.opacity(0.54))
+                    .foregroundStyle(HumTheme.glyphInk.opacity(recordWaveOpacity))
                     .frame(width: recordButtonSize * 0.36, height: recordButtonSize * 0.31)
             }
             .overlay {
-                // Subtle breathing pulse: the disc gently darkens and returns to its
-                // default tone instead of scaling.
+                // Breathing darkens the button itself without drawing a separate rim.
                 Circle()
-                    .fill(Color.black.opacity(isRecordButtonBreathing ? 0.14 : 0))
-                    .padding(1)
-                    .animation(.spring(response: 1.9, dampingFraction: 0.88), value: isRecordButtonBreathing)
+                    .fill(Color.black.opacity(recordButtonDepthOpacity))
+                    .padding(7)
+                    .allowsHitTesting(false)
             }
+            .overlay {
+                Circle()
+                    .strokeBorder(
+                        LinearGradient(
+                            colors: [
+                                Color.white.opacity(recordButtonPressedHighlightOpacity),
+                                Color.black.opacity(recordButtonPressedShadowOpacity)
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ),
+                        lineWidth: 1
+                    )
+                    .padding(8)
+                    .allowsHitTesting(false)
+            }
+            .brightness(recordButtonBrightness)
+            .shadow(
+                color: .black.opacity(recordButtonShadowOpacity),
+                radius: recordButtonShadowRadius,
+                y: recordButtonShadowY
+            )
             .frame(width: recordButtonSize, height: recordButtonSize)
             .contentShape(Circle())
-            .scaleEffect(recordButtonScale)
         }
         .buttonStyle(.plain)
         .accessibilityLabel("Start recording")
         .position(captureButtonPosition(in: screenSize))
-        .animation(HumMotion.buttonBreathing, value: isRecordButtonBreathing)
-        .animation(HumMotion.buttonPress, value: isRecordButtonPressed)
-        .animation(HumMotion.buttonDescend, value: isRecordTransitioning)
+        .animation(reduceMotion ? nil : BreathingMotion.travel, value: isRecordButtonBreathing)
+        .animation(reduceMotion ? nil : HumScopedMotion.press, value: isRecordButtonPressed)
+        .animation(reduceMotion ? nil : HumMotion.buttonDescend, value: isRecordTransitioning)
         .simultaneousGesture(recordButtonPressGesture)
     }
 
@@ -241,24 +278,59 @@ struct HomeView: View {
         return isHeadlineVisible ? 0 : 8
     }
 
-    private var recordButtonScale: CGFloat {
-        isRecordButtonPressed ? 0.91 : 1
+    private var recordButtonDepthOpacity: Double {
+        if isRecordButtonPressed { return 0 }
+        return isRecordButtonBreathing ? 0 : 0.025
+    }
+
+    private var recordWaveOpacity: Double {
+        isRecordButtonBreathing ? 0.65 : 0.6
+    }
+
+    private var recordButtonBrightness: Double {
+        if isRecordButtonPressed { return 0 }
+        return isRecordButtonBreathing ? 0 : -0.03
+    }
+
+    private var recordButtonPressedHighlightOpacity: Double {
+        if isRecordButtonPressed { return 0 }
+        return isRecordButtonBreathing ? 0 : 0.0
+    }
+
+    private var recordButtonPressedShadowOpacity: Double {
+        if isRecordButtonPressed { return 0 }
+        return isRecordButtonBreathing ? 0 : 0.0
+    }
+
+    private var recordButtonShadowOpacity: Double {
+        if isRecordButtonPressed { return 0 }
+        return isRecordButtonBreathing ? 0 : 0.05
+    }
+
+    private var recordButtonShadowRadius: CGFloat {
+        if isRecordButtonPressed { return 0 }
+        return isRecordButtonBreathing ? 0 : 8
+    }
+
+    private var recordButtonShadowY: CGFloat {
+        if isRecordButtonPressed { return 1 }
+        return isRecordButtonBreathing ? 1 : 4
     }
 
     private var recordButtonBloomOpacity: Double {
-        if isRecordButtonPressed { return 0.04 }
+        if isRecordButtonPressed { return 1.16 }
         if isRecordTransitioning { return 1 }
-        return isRecordButtonBreathing ? 1 : 0.5
+        return isRecordButtonBreathing ? 1.16 : 1.18
     }
 
     private var recordButtonBloomScale: CGFloat {
-        if isRecordButtonPressed { return 0.82 }
+        if isRecordButtonPressed { return 1.48 }
         if isRecordTransitioning { return 1.35 }
-        return isRecordButtonBreathing ? 1.72 : 1.18
+        return isRecordButtonBreathing ? 2 : 3
     }
 
     private var captureButtonBloomOpacity: Double {
-        recorder.isPaused ? 0.42 : 0.84
+        recorder.isPaused ? 0.42 : 0.42
     }
 
     private func captureButtonPosition(in size: CGSize) -> CGPoint {
@@ -292,13 +364,13 @@ struct HomeView: View {
                       !isRecordTransitioning else { return }
 
                 Haptics.medium()
-                withAnimation(HumMotion.buttonPress) {
+                withAnimation(reduceMotion ? nil : HumScopedMotion.press) {
                     isRecordButtonPressed = true
                 }
             }
             .onEnded { _ in
                 guard !isRecordingPhase else { return }
-                withAnimation(HumMotion.buttonRelease) {
+                withAnimation(reduceMotion ? nil : HumScopedMotion.press) {
                     isRecordButtonPressed = false
                 }
             }
@@ -310,13 +382,25 @@ struct HomeView: View {
     }
 
     private func presentLibrary() {
-        guard !showLibrary else { return }
+        guard !showLibrary, !isPreparingLibraryPresentation else { return }
         Haptics.selection()
-        showLibrary = true
+        libraryPresentationTask?.cancel()
+        isPreparingLibraryPresentation = true
+        libraryPresentationTask = Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(140))
+            guard !Task.isCancelled else { return }
+            showLibrary = true
+        }
     }
 
     private func dismissLibrary() {
+        libraryPresentationTask?.cancel()
         showLibrary = false
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(260))
+            guard !showLibrary else { return }
+            isPreparingLibraryPresentation = false
+        }
     }
 
     private func beginRecordingTransition(playsHaptic: Bool) {
@@ -362,15 +446,16 @@ struct HomeView: View {
     private func runRecordButtonBreathing() async {
         isRecordButtonBreathing = false
         while !Task.isCancelled {
-            withAnimation(HumMotion.buttonBreathing) {
+            withAnimation(reduceMotion ? nil : BreathingMotion.travel) {
                 isRecordButtonBreathing = true
             }
-            try? await Task.sleep(for: .seconds(2.05))
+            try? await Task.sleep(for: BreathingMotion.travelDuration)
+            try? await Task.sleep(for: BreathingMotion.topHold)
 
-            withAnimation(HumMotion.buttonBreathing) {
+            withAnimation(reduceMotion ? nil : BreathingMotion.travel) {
                 isRecordButtonBreathing = false
             }
-            try? await Task.sleep(for: .seconds(2.05))
+            try? await Task.sleep(for: BreathingMotion.travelDuration)
         }
     }
 
@@ -420,6 +505,16 @@ struct HomeView: View {
                     phase = .results(hum)
                 }
             }
+        }
+    }
+
+    private func restartRecording() {
+        guard phase == .recording, !isFinishingRecording, !isDismissingRecording else { return }
+        recorder.cancel()
+        do {
+            try recorder.start()
+        } catch {
+            cancelRecording()
         }
     }
 

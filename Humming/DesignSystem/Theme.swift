@@ -87,6 +87,13 @@ enum HumMotion {
     static let textExitDelay: Duration = .milliseconds(220)
 }
 
+enum HumScopedMotion {
+    static let press = Animation.spring(response: 0.22, dampingFraction: 0.82)
+    static let menu = Animation.spring(response: 0.38, dampingFraction: 0.72)
+    static let reveal = Animation.spring(response: 0.55, dampingFraction: 0.86)
+    static let navigation = Animation.easeInOut(duration: 0.28)
+}
+
 extension View {
     func premiumTextReveal(_ isVisible: Bool, yOffset: CGFloat = 14, blur: CGFloat = 8, delay: Double = 0) -> some View {
         modifier(PremiumTextRevealModifier(isVisible: isVisible, yOffset: yOffset, blur: blur, delay: delay))

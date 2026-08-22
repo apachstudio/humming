@@ -29,11 +29,15 @@ struct LibraryView: View {
     @State private var isSearchVisible = false
     @State private var filter: LibraryFilter = .all
     @State private var isTextVisible = false
+    @State private var isNavigationChromeVisible = false
     @State private var isClosing = false
     @State private var isReactionMenuExpanded = false
-    @State private var scrollContentOffset: CGFloat = 0
 
     private let fallbackReactions = ["❤️", "🔥", "✨", "😭", "😍", "🫶", "🎵", "💡", "🚀", "🌙", "👏", "😌"]
+
+    private var navigationIconColor: Color {
+        HumTheme.ink.opacity(0.52)
+    }
 
     init(onClose: (() -> Void)? = nil) {
         self.onClose = onClose
@@ -42,6 +46,9 @@ struct LibraryView: View {
     var body: some View {
         humList
             .premiumTextReveal(isTextVisible, yOffset: 18, blur: 9)
+            // Recede just 2% while a hum's results page is pushed on top.
+            .scaleEffect(selectedHum == nil ? 1 : 0.98)
+            .animation(HumScopedMotion.navigation, value: selectedHum?.id)
             .background(Color.white.ignoresSafeArea())
             .blur(radius: activeReactionHumID == nil ? 0 : 6)
             .animation(.easeInOut(duration: 0.2), value: activeReactionHumID)
@@ -55,56 +62,13 @@ struct LibraryView: View {
             .overlayPreferenceValue(ReactionAnchorPreferenceKey.self) { anchors in
                 reactionMenuOverlay(anchors: anchors)
             }
+            .safeAreaInset(edge: .top, spacing: 0) {
+                libraryNavigationBar
+            }
             .navigationTitle("")
             .navigationBarTitleDisplayMode(.inline)
-            .tint(HumTheme.ink)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button {
-                        Haptics.light()
-                        closeLibrary()
-                    } label: {
-                        Image(systemName: "chevron.left")
-                    }
-                    .accessibilityLabel("Back")
-                }
-
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button {
-                        Haptics.light()
-                        withAnimation(.easeInOut(duration: 0.2)) {
-                            isSearchVisible.toggle()
-                        }
-                    } label: {
-                        Image(systemName: "magnifyingglass")
-                    }
-                    .accessibilityLabel("Search")
-                }
-
-                if #available(iOS 26.0, *) {
-                    ToolbarSpacer(.fixed, placement: .navigationBarTrailing)
-                }
-
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Menu {
-                        Button("All Hums") {
-                            Haptics.selection()
-                            filter = .all
-                        }
-                        Button("With Reaction") {
-                            Haptics.selection()
-                            filter = .reacted
-                        }
-                        Button("No Reaction") {
-                            Haptics.selection()
-                            filter = .unreacted
-                        }
-                    } label: {
-                        Image(systemName: "line.3.horizontal.decrease")
-                    }
-                    .accessibilityLabel("Filter")
-                }
-            }
+            .navigationBarBackButtonHidden(true)
+            .toolbar(.hidden, for: .navigationBar)
             .navigationDestination(item: $selectedHum) { hum in
                 ResultsView(
                     hum: hum,
@@ -117,11 +81,68 @@ struct LibraryView: View {
                         onBack: returnFromHum
                     )
                 )
-                .humNavigationZoomDestination(sourceID: hum.id, in: navigationNamespace)
                 .navigationBarBackButtonHidden(true)
             }
             .preferredColorScheme(.light)
             .onAppear(perform: runTextEntrance)
+    }
+
+    private var libraryNavigationBar: some View {
+        HStack(spacing: 8) {
+            Button {
+                Haptics.light()
+                closeLibrary()
+            } label: {
+                navigationIcon("chevron.left")
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Back")
+
+            Spacer()
+
+            Button {
+                Haptics.light()
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    isSearchVisible.toggle()
+                }
+            } label: {
+                navigationIcon("magnifyingglass")
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Search")
+
+            Menu {
+                Button("All Hums") {
+                    Haptics.selection()
+                    filter = .all
+                }
+                Button("With Reaction") {
+                    Haptics.selection()
+                    filter = .reacted
+                }
+                Button("No Reaction") {
+                    Haptics.selection()
+                    filter = .unreacted
+                }
+            } label: {
+                navigationIcon("line.3.horizontal.decrease")
+            }
+            .tint(navigationIconColor)
+            .accessibilityLabel("Filter")
+        }
+        .padding(.horizontal, 12)
+        .frame(height: 48)
+        .background(Color.white.opacity(0.96))
+        .opacity(navigationChromeOpacity)
+        .allowsHitTesting(isNavigationChromeVisible)
+    }
+
+    private func navigationIcon(_ systemName: String) -> some View {
+        Image(systemName: systemName)
+            .font(.system(size: 17, weight: .medium))
+            .foregroundStyle(navigationIconColor)
+            .frame(width: 44, height: 44)
+            .contentShape(Rectangle())
     }
 
 
@@ -181,8 +202,8 @@ struct LibraryView: View {
         return store.hums.first { $0.id == activeReactionHumID }
     }
 
-    private var titleCollapseProgress: CGFloat {
-        min(max(-scrollContentOffset / 78, 0), 1)
+    private var navigationChromeOpacity: Double {
+        isNavigationChromeVisible ? 1 : 0
     }
 
     private var topReactions: [String] {
@@ -379,10 +400,17 @@ struct LibraryView: View {
     private func runTextEntrance() {
         isClosing = false
         isTextVisible = false
+        isNavigationChromeVisible = false
         Task {
             try? await Task.sleep(for: .milliseconds(120))
             withAnimation(HumMotion.textReveal) {
                 isTextVisible = true
+            }
+        }
+        Task {
+            try? await Task.sleep(for: .milliseconds(260))
+            withAnimation(.easeOut(duration: 0.18)) {
+                isNavigationChromeVisible = true
             }
         }
     }
@@ -392,6 +420,7 @@ struct LibraryView: View {
         isClosing = true
         withAnimation(HumMotion.textExit) {
             isTextVisible = false
+            isNavigationChromeVisible = false
         }
         Task {
             try? await Task.sleep(for: HumMotion.textExitDelay)
@@ -459,13 +488,13 @@ struct HumRow: View {
             Button(action: onOpen) {
                 VStack(alignment: .leading, spacing: 8) {
                     Text(hum.name)
-                        .font(.system(size: 24, weight: .regular))
+                        .font(.system(size: 20, weight: .regular))
                         .foregroundStyle(HumTheme.ink.opacity(0.9))
-                        .kerning(-0.4)
+                        .kerning(-0.2)
                         .lineLimit(1)
 
                     Text(chordSummary)
-                        .font(.system(size: 18, weight: .medium))
+                        .font(.system(size: 16, weight: .medium))
                         .foregroundStyle(HumTheme.grayText)
                         .lineLimit(1)
                 }
@@ -516,7 +545,7 @@ private struct ReactionIcon: View {
 
             if let reaction {
                 Text(reaction)
-                    .font(.system(size: 12))
+                    .font(.system(size: 20))
             } else {
                 Image(systemName: "face.smiling")
                     .font(.system(size: 20, weight: .regular))

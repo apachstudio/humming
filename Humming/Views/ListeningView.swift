@@ -6,10 +6,13 @@ struct ListeningView: View {
     var isFinishing = false
     var isDismissing = false
     var onStop: () -> Void
+    var onRestart: () -> Void
     var onCancel: () -> Void
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var introBloom = false
     @State private var timerVisible = false
+    @State private var showingDiscardConfirmation = false
     private let haloTuning = ListeningHaloTuning.standard
 
     var body: some View {
@@ -28,8 +31,8 @@ struct ListeningView: View {
                 )
 
                 Text(recordingTimeString)
-                    .font(.system(size: 24, weight: .light).monospacedDigit())
-                    .foregroundStyle(Color.white.opacity(0.36))
+                    .font(.system(size: 32, weight: .light).monospacedDigit())
+                    .foregroundStyle(Color.white.opacity(0.2))
                     .contentTransition(.opacity)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
                     .ignoresSafeArea()
@@ -40,29 +43,24 @@ struct ListeningView: View {
                     .animation(HumMotion.textExit, value: isFinishing)
                     .animation(HumMotion.textExit, value: isDismissing)
 
-                VStack(spacing: 0) {
-                    Spacer()
-
-                    Text("Tap to finish")
-                        .font(.system(size: 12, weight: .medium))
-                        .kerning(-0.12)
-                        .foregroundStyle(Color.black.opacity(0.4))
-                        .padding(.bottom, 32)
-                        .opacity(textVisible ? 1 : 0)
-                        .offset(y: textVisible ? 0 : 42)
-                        .blur(radius: textVisible ? 0 : 5)
-                        .animation(HumMotion.stopHintIn, value: timerVisible)
-                        .animation(HumMotion.textExit, value: isFinishing)
-                        .animation(HumMotion.textExit, value: isDismissing)
-                }
+                bottomControls
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+                    .padding(.horizontal, 22)
+                    .padding(.bottom, 32)
+                    .opacity(textVisible ? 1 : 0)
+                    .offset(y: textVisible ? 0 : 42)
+                    .blur(radius: textVisible ? 0 : 5)
+                    .animation(reduceMotion ? nil : HumMotion.stopHintIn, value: timerVisible)
+                    .animation(reduceMotion ? nil : HumMotion.textExit, value: isFinishing)
+                    .animation(reduceMotion ? nil : HumMotion.textExit, value: isDismissing)
             }
         }
         .preferredColorScheme(.dark)
         .toolbar {
             ToolbarItem(placement: .principal) {
                 Text("Keep vibing")
-                    .font(.system(size: 14, weight: .medium))
-                    .foregroundStyle(Color.white.opacity(0.26))
+                    .font(.system(size: 14, weight: .regular))
+                    .foregroundStyle(Color.white.opacity(0.2))
                     .opacity(textVisible ? 1 : 0)
                     .offset(y: textVisible ? 0 : -18)
                     .blur(radius: textVisible ? 0 : 5)
@@ -70,28 +68,19 @@ struct ListeningView: View {
                     .animation(HumMotion.textExit, value: isFinishing)
                     .animation(HumMotion.textExit, value: isDismissing)
             }
-
-            if #available(iOS 26.0, *) {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    dismissButton
-                }
-                .sharedBackgroundVisibility(.hidden)
-            } else {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    dismissButton
-                }
-            }
         }
         .toolbarBackground(.hidden, for: .navigationBar)
         .navigationBarTitleDisplayMode(.inline)
         .navigationTitle("")
-        .contentShape(Rectangle())
-        .onTapGesture {
-            guard !isDismissing else { return }
-            Haptics.medium()
-            onStop()
+        .alert("Discard this take?", isPresented: $showingDiscardConfirmation) {
+            Button("Keep recording", role: .cancel) {}
+            Button("Discard", role: .destructive) {
+                Haptics.warning()
+                onCancel()
+            }
+        } message: {
+            Text("The current recording will be deleted.")
         }
-        .simultaneousGesture(dismissSwipeGesture)
         .onAppear {
             introBloom = false
             timerVisible = false
@@ -124,35 +113,57 @@ struct ListeningView: View {
         timerVisible && !isFinishing && !isDismissing
     }
 
-    /// Bare chevron dismiss affordance — no glass background, just the icon.
-    private var dismissButton: some View {
-        Button {
-            Haptics.light()
-            onCancel()
-        } label: {
-            Image(systemName: "chevron.down")
-                .font(.system(size: 15, weight: .semibold))
-                .foregroundStyle(Color.white.opacity(0.46))
+    private var bottomControls: some View {
+        HStack(spacing: 14) {
+            recordingSideButton(
+                systemName: "arrow.counterclockwise",
+                accessibilityLabel: "Restart recording",
+                action: onRestart
+            )
+
+            finishButton
+
+            recordingSideButton(
+                systemName: "xmark",
+                accessibilityLabel: "Cancel and discard recording",
+                action: { showingDiscardConfirmation = true }
+            )
         }
-        .buttonStyle(.plain)
-        .accessibilityLabel("Dismiss recording")
-        .opacity(textVisible ? 1 : 0)
-        .animation(HumMotion.recordingTextIn, value: timerVisible)
-        .animation(HumMotion.textExit, value: isFinishing)
-        .animation(HumMotion.textExit, value: isDismissing)
     }
 
-    private var dismissSwipeGesture: some Gesture {
-        DragGesture(minimumDistance: 24)
-            .onEnded { value in
-                guard !isFinishing, !isDismissing else { return }
-                let translation = value.translation
-                let isDownwardDismiss = translation.height > 90 && abs(translation.width) < translation.height * 0.8
-                guard isDownwardDismiss else { return }
+    private var finishButton: some View {
+        Button {
+            guard !isDismissing else { return }
+            Haptics.medium()
+            onStop()
+        } label: {
+            Label("Finish take", systemImage: "none")
+                .font(.system(size: 14, weight: .regular))
+                .labelStyle(.titleAndIcon)
+                .frame(maxWidth: 150)
+                .frame(height: 50)
+                .contentShape(Capsule())
+        }
+        .buttonStyle(RecordingPrimaryButtonStyle())
+        .accessibilityLabel("Finish and save take")
+    }
 
-                Haptics.light()
-                onCancel()
-            }
+    private func recordingSideButton(
+        systemName: String,
+        accessibilityLabel: String,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button {
+            Haptics.light()
+            action()
+        } label: {
+            Image(systemName: systemName)
+                .font(.system(size: 16, weight: .semibold))
+                .frame(width: 50, height: 50)
+                .contentShape(Circle())
+        }
+        .buttonStyle(RecordingSideButtonStyle())
+        .accessibilityLabel(accessibilityLabel)
     }
 
     @ViewBuilder
@@ -313,11 +324,36 @@ private struct MelodyHaloWave: Shape {
     }
 }
 
+private struct RecordingSideButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .foregroundStyle(Color.white.opacity(0.85))
+            .background(Color.white.opacity(configuration.isPressed ? 0.08 : 0.02), in: Circle())
+            .overlay(Circle().strokeBorder(Color.white.opacity(0.22), lineWidth: 1))
+            .scaleEffect(configuration.isPressed ? 0.975 : 1)
+            .animation(.spring(response: 0.24, dampingFraction: 0.78), value: configuration.isPressed)
+    }
+}
+
+private struct RecordingPrimaryButtonStyle: ButtonStyle {
+    @Environment(\.isEnabled) private var isEnabled
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .foregroundStyle(Color.white.opacity(isEnabled ? 0.92 : 0.32))
+            .background(Color.white.opacity(configuration.isPressed ? 0.08 : 0.02), in: Capsule())
+            .overlay(Capsule().strokeBorder(Color.white.opacity(0.22), lineWidth: 1))
+            .scaleEffect(configuration.isPressed ? 0.975 : 1)
+            .animation(.spring(response: 0.24, dampingFraction: 0.78), value: configuration.isPressed)
+    }
+}
+
 #Preview {
     NavigationStack {
         ListeningView(
             recorder: AudioRecorder(),
             onStop: {},
+            onRestart: {},
             onCancel: {}
         )
     }

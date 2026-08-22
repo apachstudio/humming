@@ -98,6 +98,8 @@ struct DarkGlassCircle: View {
     var bloomOpacity: Double = 1
     var bloomScale: CGFloat = 1
     var circleAssetName: String?
+    var pressedCircleAssetName: String?
+    var pressedProgress: Double = 0
 
     var body: some View {
         ZStack {
@@ -119,10 +121,22 @@ struct DarkGlassCircle: View {
             .scaleEffect(bloomScale)
 
             if let circleAssetName {
-                Image(circleAssetName)
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: size, height: size)
+                ZStack {
+                    Image(circleAssetName)
+                        .resizable()
+                        .scaledToFit()
+                        .opacity(1 - pressedProgress)
+
+                    if let pressedCircleAssetName {
+                        Image(pressedCircleAssetName)
+                            .resizable()
+                            .scaledToFit()
+                            .opacity(pressedProgress)
+                    }
+                }
+                .frame(width: size * 1.045, height: size * 1.045)
+                .clipShape(Circle())
+                .frame(width: size, height: size)
             } else {
                 Circle()
                     .fill(
