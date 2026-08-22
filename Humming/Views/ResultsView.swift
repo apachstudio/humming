@@ -867,13 +867,8 @@ struct ResultsView: View {
     }
 
     private var downloadMIDILabel: some View {
-        HStack(spacing: 10) {
-            Image(systemName: "square.and.arrow.down")
-                .font(.system(size: 15, weight: .semibold))
-
-            Text("Download MIDI file")
-                .font(.system(size: 16, weight: .semibold))
-        }
+        Text("Download MIDI file")
+            .font(.system(size: 14, weight: .regular))
             .frame(maxWidth: .infinity)
             .frame(height: 56)
             .contentShape(Capsule())
@@ -1325,10 +1320,19 @@ struct DownloadMIDIButtonStyle: ButtonStyle {
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .foregroundStyle(HumTheme.ink.opacity(isEnabled ? 1 : 0.4))
+            .foregroundStyle(Color.white.opacity(isEnabled ? 0.92 : 0.35))
             .background(
                 Capsule()
-                    .fill(Color.white.opacity(0.2))
+                    .fill(.ultraThinMaterial.opacity(0.14))
+                    .overlay(
+                        Capsule()
+                            .fill(Color.white.opacity(isEnabled ? (configuration.isPressed ? 0.28 : 0.2) : 0.06))
+                            .opacity(0.34)
+                    )
+                    .overlay(
+                        Capsule()
+                            .strokeBorder(Color.white.opacity(1), lineWidth: 1)
+                    )
             )
             .scaleEffect(configuration.isPressed ? 0.975 : 1)
             .shadow(color: .black.opacity(configuration.isPressed ? 0.1 : 0.18), radius: 16, y: 8)

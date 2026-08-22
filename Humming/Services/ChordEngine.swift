@@ -13,6 +13,9 @@ struct HumAnalysis {
 enum ChordEngine {
     static let noteNames = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
 
+    // Mock build: the results grid always shows five rows of two chords.
+    static let progressionLength = 10
+
     // Krumhansl-Schmuckler key profiles.
     private static let majorProfile: [Double] = [
         6.35, 2.23, 3.48, 2.33, 4.38, 4.09, 2.52, 5.19, 2.39, 3.66, 2.29, 2.88
@@ -27,7 +30,7 @@ enum ChordEngine {
                 keyName: "Am",
                 isMinorKey: true,
                 bpm: 96,
-                chords: ["Am", "F", "C", "G"],
+                chords: normalizedProgression([], tonic: 9, isMinor: true),
                 notes: notes
             )
         }
@@ -47,24 +50,7 @@ enum ChordEngine {
             bpm: bpm
         )
 
-        // Guarantee a playable progression even for very short hums.
-        if chords.count < 4 {
-            let filler = isMinor
-                ? [symbol(root: tonic, minor: true),
-                   symbol(root: (tonic + 8) % 12, minor: false),
-                   symbol(root: (tonic + 3) % 12, minor: false),
-                   symbol(root: (tonic + 10) % 12, minor: false)]
-                : [symbol(root: tonic, minor: false),
-                   symbol(root: (tonic + 7) % 12, minor: false),
-                   symbol(root: (tonic + 9) % 12, minor: true),
-                   symbol(root: (tonic + 5) % 12, minor: false)]
-            var index = 0
-            while chords.count < 4 {
-                let candidate = filler[index % filler.count]
-                if chords.last != candidate { chords.append(candidate) }
-                index += 1
-            }
-        }
+        chords = normalizedProgression(chords, tonic: tonic, isMinor: isMinor)
 
         return HumAnalysis(
             keyName: symbol(root: tonic, minor: isMinor),
@@ -77,6 +63,28 @@ enum ChordEngine {
 
     private static func symbol(root: Int, minor: Bool) -> String {
         noteNames[root] + (minor ? "m" : "")
+    }
+
+    /// Pads or trims the detected chords to exactly `progressionLength`, cycling a
+    /// diatonic filler progression without repeating the same chord back to back.
+    private static func normalizedProgression(_ chords: [String], tonic: Int, isMinor: Bool) -> [String] {
+        var result = Array(chords.prefix(progressionLength))
+        let filler = isMinor
+            ? [symbol(root: tonic, minor: true),
+               symbol(root: (tonic + 8) % 12, minor: false),
+               symbol(root: (tonic + 3) % 12, minor: false),
+               symbol(root: (tonic + 10) % 12, minor: false)]
+            : [symbol(root: tonic, minor: false),
+               symbol(root: (tonic + 7) % 12, minor: false),
+               symbol(root: (tonic + 9) % 12, minor: true),
+               symbol(root: (tonic + 5) % 12, minor: false)]
+        var index = 0
+        while result.count < progressionLength {
+            let candidate = filler[index % filler.count]
+            if result.last != candidate { result.append(candidate) }
+            index += 1
+        }
+        return result
     }
 
     // MARK: - Key estimation
