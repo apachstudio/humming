@@ -1321,19 +1321,8 @@ struct DownloadMIDIButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .foregroundStyle(Color.white.opacity(isEnabled ? 0.92 : 0.35))
-            .background(
-                Capsule()
-                    .fill(.ultraThinMaterial.opacity(0.14))
-                    .overlay(
-                        Capsule()
-                            .fill(Color.white.opacity(isEnabled ? (configuration.isPressed ? 0.28 : 0.2) : 0.06))
-                            .opacity(0.34)
-                    )
-                    .overlay(
-                        Capsule()
-                            .strokeBorder(Color.white.opacity(1), lineWidth: 1)
-                    )
-            )
+            .background(Color.white.opacity(configuration.isPressed ? 0.08 : 0.02), in: Capsule())
+            .overlay(Capsule().strokeBorder(Color.white.opacity(0.22), lineWidth: 1))
             .scaleEffect(configuration.isPressed ? 0.975 : 1)
             .shadow(color: .black.opacity(configuration.isPressed ? 0.1 : 0.18), radius: 16, y: 8)
             .animation(.spring(response: 0.24, dampingFraction: 0.78), value: configuration.isPressed)
