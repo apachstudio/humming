@@ -1,5 +1,7 @@
 # Humming
 
+<img width="412" height="792" alt="Screenshot 2026-08-26 at 4 14 19 PM" src="https://github.com/user-attachments/assets/6b793fd4-0d26-447b-ba75-13ee90d77e46" />
+
 **Think it. Hum it. Play it.**
 
 Humming turns your voice into music: hum a melody and the app transcribes
