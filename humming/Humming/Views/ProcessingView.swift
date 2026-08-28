@@ -18,7 +18,7 @@ struct ProcessingView: View {
                 )
 
                 Text("Processing...")
-                    .font(.system(size: 14, weight: .regular))
+                    .font(.system(size: 14, weight: .medium))
                     .foregroundStyle(Color.white.opacity(0.36))
                     .multilineTextAlignment(.center)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
