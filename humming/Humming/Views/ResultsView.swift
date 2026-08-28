@@ -356,7 +356,7 @@ struct ResultsView: View {
                             .frame(width: 42, height: 42)
                         Image(systemName: player.isPlaying ? "pause.fill" : "play.fill")
                             .font(.system(size: 13, weight: .semibold))
-                            .foregroundStyle(Color.white.opacity(0.38))
+                            .foregroundStyle(Color.white.opacity(0.4))
                             .offset(x: player.isPlaying ? 0 : 1)
                     }
                 }
@@ -378,10 +378,10 @@ struct ResultsView: View {
                 Spacer()
             }
         }
-        .padding(24)
+        .padding(16)
         .background(
             RoundedRectangle(cornerRadius: 28, style: .continuous)
-                .fill(.ultraThinMaterial.opacity(0.08))
+                .fill(.ultraThinMaterial.opacity(1.18))
         )
         .overlay(
             RoundedRectangle(cornerRadius: 28, style: .continuous)
@@ -882,9 +882,9 @@ struct ResultsView: View {
             showingDeleteConfirmation = true
         } label: {
             Text("Delete this hum")
-                .font(.system(size: 14, weight: .medium))
+                .font(.system(size: 12, weight: .regular))
                 .foregroundStyle(Color.white.opacity(0.42))
-                .padding(.vertical, 8)
+                .padding(.vertical, 0)
         }
         .buttonStyle(.plain)
     }
@@ -1289,7 +1289,7 @@ struct ChordCardButtonStyle: ButtonStyle {
             .resultCardChrome(isPressed: configuration.isPressed)
             .scaleEffect(configuration.isPressed ? 0.965 : 1)
             .shadow(color: .black.opacity(configuration.isPressed ? 0.28 : 0.08), radius: configuration.isPressed ? 14 : 4, y: configuration.isPressed ? 10 : 2)
-            .animation(.spring(response: 0.24, dampingFraction: 0.74), value: configuration.isPressed)
+            .animation(.spring(response: 0.14, dampingFraction: 0.74), value: configuration.isPressed)
     }
 }
 
@@ -1321,8 +1321,8 @@ struct DownloadMIDIButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .foregroundStyle(Color.white.opacity(isEnabled ? 0.92 : 0.35))
-            .background(Color.white.opacity(configuration.isPressed ? 0.08 : 0.02), in: Capsule())
-            .overlay(Capsule().strokeBorder(Color.white.opacity(0.22), lineWidth: 1))
+            .background(Color.white.opacity(configuration.isPressed ? 0.00 : 0.00), in: Capsule())
+            .overlay(Capsule().strokeBorder(Color.white.opacity(0.00), lineWidth: 1))
             .scaleEffect(configuration.isPressed ? 0.975 : 1)
             .shadow(color: .black.opacity(configuration.isPressed ? 0.1 : 0.18), radius: 16, y: 8)
             .animation(.spring(response: 0.24, dampingFraction: 0.78), value: configuration.isPressed)

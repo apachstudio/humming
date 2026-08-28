@@ -32,7 +32,7 @@ struct ProcessingView: View {
         .onAppear {
             introBloom = false
             processingTextVisible = false
-            withAnimation(.spring(response: 1.05, dampingFraction: 0.84)) {
+            withAnimation(.spring(response: 1.0, dampingFraction: 0.8)) {
                 introBloom = true
             }
             withAnimation(HumMotion.recordingTextIn) {
