@@ -1,4 +1,4 @@
-import SwiftUI
+       import SwiftUI
 
 /// Owns the capture flow: home ("alt 3") → recording → processing → results.
 struct HomeView: View {
@@ -87,6 +87,7 @@ struct HomeView: View {
                 }
 
             }
+            .background(HumTheme.charcoal.ignoresSafeArea())
             }
             .toolbar {
                 if phase == .idle && !isRecordTransitioning && !isPreparingLibraryPresentation && !showLibrary {
