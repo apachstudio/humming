@@ -1011,6 +1011,8 @@ private struct ScrollViewAccessor: UIViewRepresentable {
 
     func makeUIView(context: Context) -> UIView {
         let view = UIView()
+        view.backgroundColor = .clear
+        view.isOpaque = false
         resolve(from: view)
         return view
     }
@@ -1033,6 +1035,8 @@ private struct GlobalFrameReader: UIViewRepresentable {
 
     func makeUIView(context: Context) -> GlobalFrameReportingView {
         let view = GlobalFrameReportingView()
+        view.backgroundColor = .clear
+        view.isOpaque = false
         view.onFrameChange = onChange
         return view
     }
